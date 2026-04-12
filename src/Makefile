@@ -2,10 +2,15 @@
 
 obj-m := smartmem.o
 
+# 添加头文件搜索路径
+ccflags-y += -I$(src)
+
+smartmem-y := main.o
 # 框架编译通过后取消注释下面的行
-# smartmem-y += core/engine.o
-# smartmem-y += core/config.o
-# smartmem-y += core/stats.o
+# 核心模块
+smartmem-y += core/engine.o
+smartmem-y += core/config.o
+smartmem-y += core/stats.o
 # smartmem-y += hooks/hook.o
 # smartmem-y += hooks/buddy_hook.o
 # smartmem-y += hooks/slub_hook.o

@@ -1,6 +1,9 @@
 /* smartmem.c - 智能内存优化引擎模块主入口 */
 
 #include "smartmem.h"
+#include "core/engine.h"
+#include "core/config.h"
+#include "core/stats.h"
 
 /* 全局状态 */
 struct smartmem_global_state *g_sm_state = NULL;
@@ -10,6 +13,8 @@ struct smartmem_global_state *g_sm_state = NULL;
  */
 static int __init smartmem_init(void)
 {
+    int ret;
+
     pr_info("%s: %s initializing...\n", SMARTMEM_NAME, SMARTMEM_DESC);
 
     /* 分配全局状态 */
@@ -24,12 +29,38 @@ static int __init smartmem_init(void)
     g_sm_state->enabled = false;
     g_sm_state->active_hooks = 0;
 
-    /* TODO: 调用子模块初始化 (后续阶段实现) */
+    /* 初始化核心模块 */
+    ret = smartmem_config_init();
+    if (ret) {
+        pr_err("%s: config init failed\n", SMARTMEM_NAME);
+        goto err_config;
+    }
+
+    ret = smartmem_stats_init();
+    if (ret) {
+        pr_err("%s: stats init failed\n", SMARTMEM_NAME);
+        goto err_stats;
+    }
+
+    ret = smartmem_engine_init();
+    if (ret) {
+        pr_err("%s: engine init failed\n", SMARTMEM_NAME);
+        goto err_engine;
+    }
 
     g_sm_state->state = SMARTMEM_STATE_READY;
 
     pr_info("%s: initialized successfully\n", SMARTMEM_NAME);
     return 0;
+
+err_engine:
+    smartmem_stats_exit();
+err_stats:
+    smartmem_config_exit();
+err_config:
+    kfree(g_sm_state);
+    g_sm_state = NULL;
+    return ret;
 }
 
 /**
@@ -45,7 +76,9 @@ static void __exit smartmem_exit(void)
 
     g_sm_state->state = SMARTMEM_STATE_STOPPING;
 
-    /* TODO: 调用子模块清理（后续阶段实现）*/
+    smartmem_engine_exit();
+    smartmem_stats_exit();
+    smartmem_config_exit();
 
     g_sm_state->state = SMARTMEM_STATE_UNINITIALIZED;
 
