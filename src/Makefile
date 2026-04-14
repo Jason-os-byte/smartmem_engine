@@ -4,6 +4,8 @@ obj-m := smartmem.o
 
 # 添加头文件搜索路径
 ccflags-y += -I$(src)
+ccflags-y += -I$(src)/core
+ccflags-y += -I$(src)/hooks
 
 smartmem-y := main.o
 # 框架编译通过后取消注释下面的行
@@ -11,12 +13,15 @@ smartmem-y := main.o
 smartmem-y += core/engine.o
 smartmem-y += core/config.o
 smartmem-y += core/stats.o
-# smartmem-y += hooks/hook.o
-# smartmem-y += hooks/buddy_hook.o
-# smartmem-y += hooks/slub_hook.o
-# smartmem-y += hooks/vma_hook.o
-# smartmem-y += hooks/lru_hook.o
-# smartmem-y += hooks/numa_hook.o
+
+# Hook 模块
+smartmem-y += hooks/hook.o
+smartmem-y += hooks/buddy_hook.o
+smartmem-y += hooks/slub_hook.o
+smartmem-y += hooks/vma_hook.o
+smartmem-y += hooks/lru_hook.o
+smartmem-y += hooks/numa_hook.o
+
 # smartmem-y += strategy/strategy.o
 # smartmem-y += strategy/builtin_strategies/numa_buddy.o
 # smartmem-y += strategy/builtin_strategies/adaptive_slub.o
