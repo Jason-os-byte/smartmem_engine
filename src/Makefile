@@ -22,11 +22,15 @@ smartmem-y += hooks/vma_hook.o
 smartmem-y += hooks/lru_hook.o
 smartmem-y += hooks/numa_hook.o
 
-# smartmem-y += strategy/strategy.o
+# 策略引擎模块
+smartmem-y += strategy/strategy.o
+
 # smartmem-y += strategy/builtin_strategies/numa_buddy.o
 # smartmem-y += strategy/builtin_strategies/adaptive_slub.o
 # smartmem-y += strategy/builtin_strategies/multi_gen_lru.o
 # smartmem-y += strategy/builtin_strategies/numa_balance.o
+
+
 # smartmem-y += monitor/monitor.o
 # smartmem-y += monitor/ebpf_monitor.o
 # smartmem-y += monitor/trace_monitor.o
