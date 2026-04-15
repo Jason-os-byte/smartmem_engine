@@ -6,6 +6,8 @@ obj-m := smartmem.o
 ccflags-y += -I$(src)
 ccflags-y += -I$(src)/core
 ccflags-y += -I$(src)/hooks
+ccflags-y += -I$(src)/strategy
+ccflags-y += -I$(src)/monitor
 
 smartmem-y := main.o
 # 框架编译通过后取消注释下面的行
@@ -30,10 +32,12 @@ smartmem-y += strategy/strategy.o
 # smartmem-y += strategy/builtin_strategies/multi_gen_lru.o
 # smartmem-y += strategy/builtin_strategies/numa_balance.o
 
+# 监控系统模块
+smartmem-y += monitor/monitor.o
+smartmem-y += monitor/ebpf_monitor.o
+smartmem-y += monitor/trace_monitor.o
 
-# smartmem-y += monitor/monitor.o
-# smartmem-y += monitor/ebpf_monitor.o
-# smartmem-y += monitor/trace_monitor.o
+
 # smartmem-y += analysis/analysis.o
 # smartmem-y += analysis/hotspot.o
 # smartmem-y += analysis/bottleneck.o

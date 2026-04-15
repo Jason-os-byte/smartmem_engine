@@ -1,9 +1,18 @@
 /* smartmem.c - 智能内存优化引擎模块主入口 */
 
 #include "smartmem.h"
-#include "core/engine.h"
-#include "core/config.h"
-#include "core/stats.h"
+#include "engine.h"
+#include "config.h"
+#include "stats.h"
+#include "hook.h"
+#include "buddy_hook.h"
+#include "slub_hook.h"
+#include "vma_hook.h"
+#include "lru_hook.h"
+#include "numa_hook.h"
+#include "strategy.h"
+#include "monitor.h"
+
 
 /* 全局状态 */
 struct smartmem_global_state *g_sm_state = NULL;
@@ -48,11 +57,29 @@ static int __init smartmem_init(void)
         goto err_engine;
     }
 
+    /* 初始化策略引擎 */
+    ret = smartmem_strategy_init();
+    if (ret) {
+        pr_err("%s: strategy init failed\n", SMARTMEM_NAME);
+        goto err_strategy;
+    }
+
+    /* 初始化监控系统 */
+    ret = smartmem_monitor_init();
+    if (ret) {
+        pr_err("%s: monitor init failed\n", SMARTMEM_NAME);
+        goto err_monitor;
+    }
+
     g_sm_state->state = SMARTMEM_STATE_READY;
 
     pr_info("%s: initialized successfully\n", SMARTMEM_NAME);
     return 0;
 
+err_monitor:
+    smartmem_strategy_exit();
+err_strategy:
+    smartmem_engine_exit();
 err_engine:
     smartmem_stats_exit();
 err_stats:
@@ -76,6 +103,8 @@ static void __exit smartmem_exit(void)
 
     g_sm_state->state = SMARTMEM_STATE_STOPPING;
 
+    smartmem_monitor_exit();
+    smartmem_strategy_exit();
     smartmem_engine_exit();
     smartmem_stats_exit();
     smartmem_config_exit();
