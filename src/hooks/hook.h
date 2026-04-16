@@ -3,6 +3,11 @@
 #define _SMARTMEM_HOOK_H
 
 #include "smartmem.h"
+#include "buddy_hook.h"
+#include "lru_hook.h"
+#include "numa_hook.h"
+#include "slub_hook.h"
+#include "vma_hook.h"
 
 /**
  * Hook类型

@@ -10,12 +10,61 @@ static DEFINE_SPINLOCK(hook_lock);
  */
 int smartmem_hook_init(void)
 {
+    int ret;
+
     pr_info("smartmem: hook manager initializing...\n");
 
     INIT_LIST_HEAD(&hook_list);
 
+    /* 初始化 Buddy Hook */
+    ret = buddy_hook_init();
+    if (ret) {
+        pr_err("smartmem: buddy hook init failed: %d\n", ret);
+        goto err_buddy;
+    }
+
+    /* 初始化 SLUB Hook */
+    ret = slub_hook_init();
+    if (ret) {
+        pr_err("smartmem: slub hook init failed: %d\n", ret);
+        goto err_slub;
+    }
+
+    /* 初始化 VMA Hook */
+    ret = vma_hook_init();
+    if (ret) {
+        pr_err("smartmem: vma hook init failed: %d\n", ret);
+        goto err_vma;
+    }
+
+    /* 初始化 LRU Hook */
+    ret = lru_hook_init();
+    if (ret) {
+        pr_err("smartmem: lru hook init failed: %d\n", ret);
+        goto err_lru;
+    }
+
+    /* 初始化 NUMA Hook */
+    ret = numa_hook_init();
+    if (ret) {
+        pr_err("smartmem: numa hook init failed: %d\n", ret);
+        goto err_numa;
+    }
+
     pr_info("smartmem: hook manager initialized\n");
     return 0;
+
+/* 错误处理 */
+err_numa:
+    lru_hook_exit();
+err_lru:
+    vma_hook_exit();
+err_vma:
+    slub_hook_exit();
+err_slub:
+    buddy_hook_exit();
+err_buddy:
+    return ret;
 }
 
 /**
@@ -25,7 +74,12 @@ void smartmem_hook_exit(void)
 {
     pr_info("smartmem: hook manager exiting...\n");
 
-    /* 链表应该已经清空 */
+    /* 按相反顺序退出 */
+    numa_hook_exit();
+    lru_hook_exit();
+    vma_hook_exit();
+    slub_hook_exit();
+    buddy_hook_exit();
 
     pr_info("smartmem: hook manager exited\n");
 }

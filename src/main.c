@@ -60,6 +60,13 @@ static int __init smartmem_init(void)
         goto err_engine;
     }
 
+    /* 初始化 Hook 管理框架（会自动调用所有子 hook） */
+    ret = smartmem_hook_init();
+    if (ret) {
+        pr_err("%s: hook init failed\n", SMARTMEM_NAME);
+        goto err_hook;
+    }
+
     /* 初始化策略引擎 */
     ret = smartmem_strategy_init();
     if (ret) {
@@ -109,6 +116,8 @@ err_analysis:
 err_monitor:
     smartmem_strategy_exit();
 err_strategy:
+    smartmem_hook_exit();
+err_hook:
     smartmem_engine_exit();
 err_engine:
     smartmem_stats_exit();
@@ -138,6 +147,7 @@ static void __exit smartmem_exit(void)
     smartmem_analysis_exit();
     smartmem_monitor_exit();
     smartmem_strategy_exit();
+    smartmem_hook_exit();
     smartmem_engine_exit();
     smartmem_stats_exit();
     smartmem_config_exit();
