@@ -12,6 +12,7 @@
 #include "numa_hook.h"
 #include "strategy.h"
 #include "monitor.h"
+#include "analysis.h"
 
 
 /* 全局状态 */
@@ -71,11 +72,20 @@ static int __init smartmem_init(void)
         goto err_monitor;
     }
 
+    /* 初始化分析引擎 */
+    ret = smartmem_analysis_init();
+    if (ret) {
+        pr_err("%s: analysis init failed\n", SMARTMEM_NAME);
+        goto err_analysis;
+    }
+
     g_sm_state->state = SMARTMEM_STATE_READY;
 
     pr_info("%s: initialized successfully\n", SMARTMEM_NAME);
     return 0;
 
+err_analysis:
+    smartmem_monitor_exit();
 err_monitor:
     smartmem_strategy_exit();
 err_strategy:
@@ -103,6 +113,7 @@ static void __exit smartmem_exit(void)
 
     g_sm_state->state = SMARTMEM_STATE_STOPPING;
 
+    smartmem_analysis_exit();
     smartmem_monitor_exit();
     smartmem_strategy_exit();
     smartmem_engine_exit();

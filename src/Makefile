@@ -8,6 +8,7 @@ ccflags-y += -I$(src)/core
 ccflags-y += -I$(src)/hooks
 ccflags-y += -I$(src)/strategy
 ccflags-y += -I$(src)/monitor
+ccflags-y += -I$(src)/analysis
 
 smartmem-y := main.o
 # 框架编译通过后取消注释下面的行
@@ -37,11 +38,13 @@ smartmem-y += monitor/monitor.o
 smartmem-y += monitor/ebpf_monitor.o
 smartmem-y += monitor/trace_monitor.o
 
+# 分析引擎模块
+smartmem-y += analysis/analysis.o
+smartmem-y += analysis/hotspot.o
+smartmem-y += analysis/bottleneck.o
+smartmem-y += analysis/root_cause.o
 
-# smartmem-y += analysis/analysis.o
-# smartmem-y += analysis/hotspot.o
-# smartmem-y += analysis/bottleneck.o
-# smartmem-y += analysis/root_cause.o
+
 # smartmem-y += optimization/optimization.o
 # smartmem-y += optimization/auto_tune.o
 # smartmem-y += optimization/predictive.o
