@@ -3,6 +3,8 @@
 #include "proc.h"
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/uaccess.h>
+#include "config.h"
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -11,10 +13,35 @@ static struct proc_dir_entry *smartmem_dir = NULL;
  */
 static int config_show(struct seq_file *m, void *v)
 {
+    char value[32];
+
     seq_printf(m, "SmartMemEngine Configuration\n");
     seq_printf(m, "============================\n");
     seq_printf(m, "Version: 1.0.0\n");
     seq_printf(m, "Status: Running\n");
+
+    if (smartmem_config_get("hook_buddy_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "hook_buddy_enabled=%s\n", value);
+    if (smartmem_config_get("hook_slub_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "hook_slub_enabled=%s\n", value);
+    if (smartmem_config_get("hook_vma_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "hook_vma_enabled=%s\n", value);
+    if (smartmem_config_get("hook_lru_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "hook_lru_enabled=%s\n", value);
+    if (smartmem_config_get("hook_numa_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "hook_numa_enabled=%s\n", value);
+    if (smartmem_config_get("numa_aware_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "numa_aware_enabled=%s\n", value);
+    if (smartmem_config_get("adaptive_slub_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "adaptive_slub_enabled=%s\n", value);
+    if (smartmem_config_get("ebpf_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "ebpf_enabled=%s\n", value);
+    if (smartmem_config_get("trace_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "trace_enabled=%s\n", value);
+    if (smartmem_config_get("auto_tune_enabled", value, sizeof(value)) == 0)
+        seq_printf(m, "auto_tune_enabled=%s\n", value);
+
+
     return 0;
 }
 
@@ -26,9 +53,58 @@ static int config_open(struct inode *inode, struct file *file)
     return single_open(file, config_show, NULL);
 }
 
+/**
+ * 写入配置文件
+ */
+static ssize_t config_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos) 
+{
+    char *buf, *key, *value;
+    int ret;
+
+    if (count > 256) {
+        return -EINVAL;
+    }
+
+    buf = kmalloc(count + 1, GFP_KERNEL);
+    if (!buf) {
+        return -ENOMEM;
+    }
+
+    if (copy_from_user(buf, buffer, count)) {
+        kfree(buf);
+        return -EFAULT;
+    }
+
+    buf[count] = '\0';
+
+    /* 解析 key=value 格式 */
+    key = buf;
+    value = strchr(buf, '=');
+    if (!value) {
+        kfree(buf);
+        return -EINVAL;
+    }
+    *value++ = '\0';
+
+    /* 去除换行符 */
+    if (value[strlen(value) - 1] == '\n') {
+        value[strlen(value) - 1] = '\0';
+    }
+
+    ret = smartmem_config_set(key, value);
+    kfree(buf);
+
+    if (ret) {
+        return ret;
+    }
+
+    return count;
+}
+
 static const struct proc_ops config_proc_ops = {
     .proc_open = config_open,
     .proc_read = seq_read,
+    .proc_write = config_write,
     .proc_lseek = seq_lseek,
     .proc_release = single_release,
 };
