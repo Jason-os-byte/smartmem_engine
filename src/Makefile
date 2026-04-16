@@ -9,6 +9,8 @@ ccflags-y += -I$(src)/hooks
 ccflags-y += -I$(src)/strategy
 ccflags-y += -I$(src)/monitor
 ccflags-y += -I$(src)/analysis
+ccflags-y += -I$(src)/optimization
+ccflags-y += -I$(src)/interface
 
 smartmem-y := main.o
 # 框架编译通过后取消注释下面的行
@@ -44,13 +46,15 @@ smartmem-y += analysis/hotspot.o
 smartmem-y += analysis/bottleneck.o
 smartmem-y += analysis/root_cause.o
 
+# 优化引擎模块
+smartmem-y += optimization/optimization.o
+smartmem-y += optimization/auto_tune.o
+smartmem-y += optimization/predictive.o
 
-# smartmem-y += optimization/optimization.o
-# smartmem-y += optimization/auto_tune.o
-# smartmem-y += optimization/predictive.o
-# smartmem-y += interface/interface.o
-# smartmem-y += interface/proc.o
-# smartmem-y += interface/debugfs.o
+# 接口层模块
+smartmem-y += interface/interface.o
+smartmem-y += interface/proc.o
+smartmem-y += interface/debugfs.o
 
 # 获取内核源码路径
 KDIR ?= /lib/modules/$(shell uname -r)/build

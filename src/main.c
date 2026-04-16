@@ -13,6 +13,8 @@
 #include "strategy.h"
 #include "monitor.h"
 #include "analysis.h"
+#include "optimization.h"
+#include "interface.h"
 
 
 /* 全局状态 */
@@ -79,11 +81,29 @@ static int __init smartmem_init(void)
         goto err_analysis;
     }
 
+    /* 初始化优化引擎 */
+    ret = smartmem_optimization_init();
+    if (ret) {
+        pr_err("%s: optimization init failed\n", SMARTMEM_NAME);
+        goto err_optimization;
+    }
+
+    /* 初始化接口层 */
+    ret = smartmem_interface_init();
+    if (ret) {
+        pr_err("%s: interface init failed\n", SMARTMEM_NAME);
+        goto err_interface;
+    }
+
     g_sm_state->state = SMARTMEM_STATE_READY;
 
     pr_info("%s: initialized successfully\n", SMARTMEM_NAME);
     return 0;
 
+err_interface:
+    smartmem_optimization_exit();
+err_optimization:
+    smartmem_analysis_exit();
 err_analysis:
     smartmem_monitor_exit();
 err_monitor:
@@ -113,6 +133,8 @@ static void __exit smartmem_exit(void)
 
     g_sm_state->state = SMARTMEM_STATE_STOPPING;
 
+    smartmem_interface_exit();
+    smartmem_optimization_exit();
     smartmem_analysis_exit();
     smartmem_monitor_exit();
     smartmem_strategy_exit();
