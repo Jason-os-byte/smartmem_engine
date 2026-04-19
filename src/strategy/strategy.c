@@ -43,17 +43,29 @@ void smartmem_strategy_exit(void)
 int buddy_strategy_register(struct buddy_strategy *s)
 {
     unsigned long flags;
+    struct buddy_strategy *tmp_s;
 
     if (!s || !s->name[0]) {
         pr_err("smartmem: invalid buddy strategy\n");
         return -EINVAL;
     }
 
+    // 检查是否已存在
     spin_lock_irqsave(&buddy_strategy_lock, flags);
+    list_for_each_entry(tmp_s, &buddy_strategy_list, list) {
+        if (strcmp(tmp_s->name, s->name) == 0) {
+            spin_unlock_irqrestore(&buddy_strategy_lock, flags);
+            pr_err("smartmem: buddy strategy '%s' already exits\n", s->name);
+            return -EEXIST;
+        }
+    }
     list_add_tail(&s->list, &buddy_strategy_list);
+
+    // 如果没有当前策略，设置为当前策略
     if (!current_buddy_strategy) {
         current_buddy_strategy = s;
         s->enabled = true;
+        pr_info("smartmem: buddy strategy '%s' set as default\n", s->name);
     }
     spin_unlock_irqrestore(&buddy_strategy_lock, flags);
 
@@ -73,6 +85,7 @@ int buddy_strategy_unregister(struct buddy_strategy *s)
     }
 
     spin_lock_irqsave(&buddy_strategy_lock, flags);
+    // 如果是当前策略，先切换
     if (current_buddy_strategy == s) {
         current_buddy_strategy = NULL;
     }

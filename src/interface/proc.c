@@ -5,6 +5,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include "config.h"
+#include "strategy.h"
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -110,6 +111,41 @@ static const struct proc_ops config_proc_ops = {
 };
 
 /**
+ * 显示策略信息
+ */
+static int policies_show(struct seq_file *m, void *v)
+{
+    struct buddy_strategy *s;
+
+    seq_printf(m, "SmartmemEngine Policies\n");
+    seq_printf(m, "=======================\n");
+
+    seq_printf(m, "Buddy Strategies:\n");
+    s = buddy_strategy_get_current();
+    if (s) {
+        seq_printf(m, "  Current: %s (enabled)\n", s->name);
+        seq_printf(m, "  Version: %s\n", s->version);
+        seq_printf(m, "  Description: %s\n", s->description);
+    } else {
+        seq_printf(m, "  No active strategy\n");
+    }
+
+    return 0;
+}
+
+static int policies_open(struct inode *inode, struct file *file) 
+{
+    return single_open(file, policies_show, NULL);
+}
+
+static const struct proc_ops policies_proc_ops = {
+    .proc_open = policies_open,
+    .proc_read = seq_read,
+    .proc_lseek = seq_lseek,
+    .proc_release = single_release,
+};
+
+/**
  * procfs初始化
  */
 int smartmem_proc_init(void)
@@ -130,6 +166,13 @@ int smartmem_proc_init(void)
         return -ENOMEM;
     }
 
+    // 创建 /proc/smartmem/policies
+    if (!proc_create("policies", 0444, smartmem_dir, &policies_proc_ops)) {
+        pr_err("smartmem: failed to create /prco/smartmem/policies\n");
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
+
     pr_info("smartmem: procfs initialized\n");
     return 0;
 }
@@ -140,6 +183,7 @@ void smartmem_proc_exit(void)
     pr_info("smartmem: procfs exiting...\n");
 
     if (smartmem_dir) {
+        remove_proc_entry("policies", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         smartmem_dir = NULL;
