@@ -6,6 +6,7 @@
 #include <linux/uaccess.h>
 #include "config.h"
 #include "strategy.h"
+#include "stats.h"
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -146,6 +147,43 @@ static const struct proc_ops policies_proc_ops = {
 };
 
 /**
+ * 显示统计信息
+ */
+static int stats_show(struct seq_file *m, void *v)
+{
+    seq_printf(m, "SmartMemEngine Statistics\n");
+	seq_printf(m, "=========================\n\n");
+
+	seq_printf(m, "Buddy Allocator:\n");
+	seq_printf(m, "  alloc_count: %llu\n", smartmem_stats_get_buddy_alloc());
+	seq_printf(m, "  free_count:  %llu\n", smartmem_stats_get_buddy_free());
+	seq_printf(m, "\n");
+
+	seq_printf(m, "SLUB Allocator:\n");
+	seq_printf(m, "  alloc_count: %llu\n", smartmem_stats_get_slub_alloc());
+	seq_printf(m, "  free_count:  %llu\n", smartmem_stats_get_slub_free());
+	seq_printf(m, "\n");
+
+	seq_printf(m, "NUMA:\n");
+	seq_printf(m, "  local_alloc:  %llu\n", smartmem_stats_get_numa_local());
+	seq_printf(m, "  remote_alloc: %llu\n", smartmem_stats_get_numa_remote());
+
+	return 0;
+}
+
+static int stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, stats_show, NULL);
+}
+
+static const struct proc_ops stats_proc_ops = {
+	.proc_open = stats_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+};
+
+/**
  * procfs初始化
  */
 int smartmem_proc_init(void)
@@ -169,9 +207,18 @@ int smartmem_proc_init(void)
     // 创建 /proc/smartmem/policies
     if (!proc_create("policies", 0444, smartmem_dir, &policies_proc_ops)) {
         pr_err("smartmem: failed to create /prco/smartmem/policies\n");
+        remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         return -ENOMEM;
     }
+
+    if (!proc_create("stats", 0444, smartmem_dir, &stats_proc_ops)) {
+		pr_err("smartmem: failed to create /proc/smartmem/stats\n");
+		remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
+		remove_proc_entry("smartmem", NULL);
+		return -ENOMEM;
+	}
 
     pr_info("smartmem: procfs initialized\n");
     return 0;
@@ -183,6 +230,7 @@ void smartmem_proc_exit(void)
     pr_info("smartmem: procfs exiting...\n");
 
     if (smartmem_dir) {
+        remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);

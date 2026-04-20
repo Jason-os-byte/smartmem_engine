@@ -25,16 +25,31 @@ struct smartmem_stats {
 /* per-CPU统计 */
 struct smartmem_cpu_stats {
     u64 buddy_alloc_count;
+    u64 buddy_free_count;
     u64 slub_alloc_count;
+    u64 slub_free_count;
 };
+
+DECLARE_PER_CPU(struct smartmem_cpu_stats, sm_cpu_stats);
 
 /* 统计接口 */
 int smartmem_stats_init(void);
 void smartmem_stats_exit(void);
+
 void smartmem_stats_buddy_alloc_inc(void);
 void smartmem_stats_buddy_free_inc(void);
 void smartmem_stats_slub_alloc_inc(void);
 void smartmem_stats_slub_free_inc(void);
+
+u64 smartmem_stats_get_buddy_alloc(void);
+u64 smartmem_stats_get_buddy_free(void);
+u64 smartmem_stats_get_slub_alloc(void);
+u64 smartmem_stats_get_slub_free(void);
+u64 smartmem_stats_get_numa_local(void);
+u64 smartmem_stats_get_numa_remote(void);
+
+void smartmem_stats_aggregate(void);
+
 void smartmem_stats_reset(void);
 
 #endif /* _SMARTMEM_STATS_H */

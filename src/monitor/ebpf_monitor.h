@@ -7,8 +7,8 @@
 /* eBPF监控接口 */
 int ebpf_monitor_init(void);
 void ebpf_monitor_exit(void);
-int ebpf_monitor_load(void);
-int ebpf_monitor_unload(void);
+// int ebpf_monitor_load(void);
+// int ebpf_monitor_unload(void);
 int ebpf_monitor_start(void);
 int ebpf_monitor_stop(void);
 
