@@ -5,6 +5,16 @@
 
 #include "hook.h"
 
+/**
+ * 用于保存 SLUB 分配参数
+ */
+struct slub_alloc_args {
+	size_t size;
+	gfp_t gfp_mask;
+	ktime_t start_time;
+	bool active;
+};
+
 /* SLUB Hook 接口 */
 int slub_hook_init(void);
 void slub_hook_exit(void);
