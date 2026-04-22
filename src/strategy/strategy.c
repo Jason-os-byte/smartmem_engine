@@ -16,10 +16,18 @@ static DEFINE_SPINLOCK(slub_strategy_lock);
  */
 int smartmem_strategy_init(void)
 {
+    int ret = 0;
+
     pr_info("smartmem: strategy engine initializing...\n");
 
     INIT_LIST_HEAD(&buddy_strategy_list);
     INIT_LIST_HEAD(&slub_strategy_list);
+
+    // 初始化 numa_buddy 策略
+    ret = numa_buddy_init();
+    if (ret) {
+        pr_warn("smartmem: numa buddy strategy initialize failed\n");
+    }
 
     pr_info("smartmem: strategy engine initialized\n");
     return 0;
@@ -32,7 +40,7 @@ void smartmem_strategy_exit(void)
 {
     pr_info("smartmem: strategy engine exiting...\n");
 
-    /* 清理时会自动释放链表 */
+    numa_buddy_exit();
 
     pr_info("smartmem: strategy engine exited\n");
 }

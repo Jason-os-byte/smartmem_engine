@@ -4,6 +4,7 @@
 #define _SMARTMEM_STRATEGY_H
 
 #include "smartmem.h"
+#include "numa_buddy.h"
 
 /**
  * Buddy 策略操作

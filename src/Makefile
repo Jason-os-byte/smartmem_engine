@@ -11,6 +11,7 @@ ccflags-y += -I$(src)/monitor
 ccflags-y += -I$(src)/analysis
 ccflags-y += -I$(src)/optimization
 ccflags-y += -I$(src)/interface
+ccflags-y += -I$(src)/strategy/builtin_strategies
 
 smartmem-y := main.o
 # 框架编译通过后取消注释下面的行
@@ -30,7 +31,7 @@ smartmem-y += hooks/numa_hook.o
 # 策略引擎模块
 smartmem-y += strategy/strategy.o
 
-# smartmem-y += strategy/builtin_strategies/numa_buddy.o
+smartmem-y += strategy/builtin_strategies/numa_buddy.o
 # smartmem-y += strategy/builtin_strategies/adaptive_slub.o
 # smartmem-y += strategy/builtin_strategies/multi_gen_lru.o
 # smartmem-y += strategy/builtin_strategies/numa_balance.o
