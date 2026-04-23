@@ -37,12 +37,12 @@ static int mark_page_accessed_entry(struct kprobe *p, struct pt_regs *regs)
 }
 
 /**
- * page_referenced 入口处理
+ * folio_referenced 入口处理
  */
 static int page_referenced_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	struct page *page = (struct page *)regs->di;
+	struct folio *folio = (struct folio *)regs->di;
 	int is_locked = (int)regs->si;
 #else
 	return 0;
@@ -51,8 +51,8 @@ static int page_referenced_entry(struct kprobe *p, struct pt_regs *regs)
 	/* 更新页面引用统计 */
 	/* TODO: 实现页面引用跟踪 */
 
-	pr_debug("smartmem: page referenced, pfn=%lu, locked=%d\n",
-		 page_to_pfn(page), is_locked);
+	pr_debug("smartmem: folio referenced, pfn=%lu, locked=%d\n",
+		 folio_pfn(folio), is_locked);
 
 	return 0;
 }
@@ -77,7 +77,7 @@ int lru_hook_init(void)
 
     /* 初始化 page_referenced kprobe */
 	memset(&kp_page_referenced, 0, sizeof(kp_page_referenced));
-	kp_page_referenced.symbol_name = "page_referenced";
+	kp_page_referenced.symbol_name = "folio_referenced";
 	kp_page_referenced.pre_handler = page_referenced_entry;
 	ret = register_kprobe(&kp_page_referenced);
 	if (ret) {

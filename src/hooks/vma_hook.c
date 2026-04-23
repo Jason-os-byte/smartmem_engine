@@ -59,12 +59,14 @@ static int munmap_entry(struct kprobe *p, struct pt_regs *regs)
 // mremap 入口处理
 static int mremap_entry(struct kprobe *p, struct pt_regs *regs)
 {
-    #if defined(CONFIG_X86_64)
-	unsigned long old_addr = (unsigned long)regs->di;
-	// unsigned long old_len = (unsigned long)regs->si;
-	// unsigned long new_len = (unsigned long)regs->dx;
-	// unsigned long flags = (unsigned long)regs->r10;
-	unsigned long new_addr = (unsigned long)regs->r8;
+#if defined(CONFIG_X86_64)
+	/* __x64_sys_mremap: regs->di 是 pt_regs 指针，参数从中取 */
+	struct pt_regs *real_regs = (struct pt_regs *)regs->di;
+	unsigned long old_addr = real_regs->di;
+	unsigned long old_len = real_regs->si;
+	unsigned long new_len = real_regs->dx;
+	unsigned long flags = real_regs->r10;
+	unsigned long new_addr = real_regs->r8;
 #else
 	return 0;
 #endif
@@ -112,7 +114,7 @@ int vma_hook_init(void)
 
     /* 初始化 mremap kprobe */
 	memset(&kp_mremap, 0, sizeof(kp_mremap));
-	kp_mremap.symbol_name = "mremap";
+	kp_mremap.symbol_name = "__x64_sys_mremap";
 	kp_mremap.pre_handler = mremap_entry;
 	ret = register_kprobe(&kp_mremap);
 	if (ret) {

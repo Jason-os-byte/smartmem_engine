@@ -32,7 +32,7 @@ smartmem-y += hooks/numa_hook.o
 smartmem-y += strategy/strategy.o
 
 smartmem-y += strategy/builtin_strategies/numa_buddy.o
-# smartmem-y += strategy/builtin_strategies/adaptive_slub.o
+smartmem-y += strategy/builtin_strategies/adaptive_slub.o
 # smartmem-y += strategy/builtin_strategies/multi_gen_lru.o
 # smartmem-y += strategy/builtin_strategies/numa_balance.o
 

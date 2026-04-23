@@ -29,6 +29,14 @@ int smartmem_strategy_init(void)
         pr_warn("smartmem: numa buddy strategy initialize failed\n");
     }
 
+    pr_info("smartmem: adaptive slub  strategy up\n");
+    // 初始化 adaptive slub 策略
+    ret = adaptive_slub_init();
+    pr_info("smartmem: adaptive slub  strategy down\n");
+    if (ret) {
+        pr_warn("smartmem: adaptive slub strategy initialize failed\n");
+    }
+
     pr_info("smartmem: strategy engine initialized\n");
     return 0;
 }

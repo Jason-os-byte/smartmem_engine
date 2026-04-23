@@ -5,6 +5,7 @@
 
 #include "smartmem.h"
 #include "numa_buddy.h"
+#include "adaptive_slub.h"
 
 /**
  * Buddy 策略操作

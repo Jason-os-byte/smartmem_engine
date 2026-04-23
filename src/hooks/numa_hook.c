@@ -41,12 +41,12 @@ static int migrate_pages_entry(struct kprobe *p, struct pt_regs *regs)
 }
 
 /**
- * migrate_misplaced_page 入口处理
+ * migrate_misplaced_folio 入口处理
  */
 static int migrate_misplaced_page_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	struct page *page = (struct page *)regs->di;
+	struct folio *folio = (struct folio *)regs->di;
 #else
 	return 0;
 #endif
@@ -54,7 +54,7 @@ static int migrate_misplaced_page_entry(struct kprobe *p, struct pt_regs *regs)
 	/* 更新 NUMA 错位页面迁移统计 */
 	/* TODO: 实现错位页面跟踪 */
 
-	pr_debug("smartmem: migrate_misplaced_page pfn=%lu\n", page_to_pfn(page));
+	pr_debug("smartmem: migrate_misplaced_folio pfn=%lu\n", folio_pfn(folio));
 
 	return 0;
 }
@@ -79,7 +79,7 @@ int numa_hook_init(void)
 
 	/* 初始化 migrate_misplaced_page kprobe */
 	memset(&kp_migrate_misplaced_page, 0, sizeof(kp_migrate_misplaced_page));
-	kp_migrate_misplaced_page.symbol_name = "migrate_misplaced_page";
+	kp_migrate_misplaced_page.symbol_name = "migrate_misplaced_folio";
 	kp_migrate_misplaced_page.pre_handler = migrate_misplaced_page_entry;
 	ret = register_kprobe(&kp_migrate_misplaced_page);
 	if (ret) {
