@@ -118,6 +118,8 @@ static int policies_show(struct seq_file *m, void *v)
 {
     struct buddy_strategy *buddy_stra;
     struct slub_strategy *slub_stra;
+    struct lru_strategy *ls;
+	struct numa_strategy *ns;
 
     seq_printf(m, "SmartmemEngine Policies\n");
     seq_printf(m, "=======================\n");
@@ -142,6 +144,28 @@ static int policies_show(struct seq_file *m, void *v)
     } else {
         seq_printf(m, " No active strategy\n");
     }
+
+    /* LRU 策略 */
+	seq_printf(m, "\nLRU Strategies:\n");
+	ls = lru_strategy_get_current();
+	if (ls) {
+		seq_printf(m, "  Current: %s (enabled)\n", ls->name);
+		seq_printf(m, "  Version: %s\n", ls->version);
+		seq_printf(m, "  Description: %s\n", ls->description);
+	} else {
+		seq_printf(m, "  No active strategy\n");
+	}
+
+	/* NUMA 策略 */
+	seq_printf(m, "\nNUMA Strategies:\n");
+	ns = numa_strategy_get_current();
+	if (ns) {
+		seq_printf(m, "  Current: %s (enabled)\n", ns->name);
+		seq_printf(m, "  Version: %s\n", ns->version);
+		seq_printf(m, "  Description: %s\n", ns->description);
+	} else {
+		seq_printf(m, "  No active strategy\n");
+	}
 
     return 0;
 }
