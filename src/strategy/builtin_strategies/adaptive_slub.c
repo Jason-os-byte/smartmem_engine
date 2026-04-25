@@ -218,8 +218,6 @@ struct slub_strategy *adaptive_slub_strategy_create(void)
 {
 	int cpu;
 
-    pr_info("adaptive_slub: strategy creatint...\n");
-
 	/* 清空统计 */
 	memset(&as_stats, 0, sizeof(as_stats));
 

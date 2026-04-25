@@ -116,19 +116,31 @@ static const struct proc_ops config_proc_ops = {
  */
 static int policies_show(struct seq_file *m, void *v)
 {
-    struct buddy_strategy *s;
+    struct buddy_strategy *buddy_stra;
+    struct slub_strategy *slub_stra;
 
     seq_printf(m, "SmartmemEngine Policies\n");
     seq_printf(m, "=======================\n");
 
     seq_printf(m, "Buddy Strategies:\n");
-    s = buddy_strategy_get_current();
-    if (s) {
-        seq_printf(m, "  Current: %s (enabled)\n", s->name);
-        seq_printf(m, "  Version: %s\n", s->version);
-        seq_printf(m, "  Description: %s\n", s->description);
+    buddy_stra = buddy_strategy_get_current();
+    if (buddy_stra) {
+        seq_printf(m, "  Current: %s (enabled)\n", buddy_stra->name);
+        seq_printf(m, "  Version: %s\n", buddy_stra->version);
+        seq_printf(m, "  Description: %s\n", buddy_stra->description);
     } else {
         seq_printf(m, "  No active strategy\n");
+    }
+
+    //SLUB 策略
+    seq_printf(m, "\nSLUB Strategies:\n");
+    slub_stra = slub_strategy_get_current();
+    if (slub_stra) {
+        seq_printf(m, " Current: %s (enabled)\n", slub_stra->name);
+        seq_printf(m, " Version: %s\n", slub_stra->version);
+        seq_printf(m, " Description: %s\n", slub_stra->description);
+    } else {
+        seq_printf(m, " No active strategy\n");
     }
 
     return 0;

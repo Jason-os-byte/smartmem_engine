@@ -63,9 +63,9 @@ static int mremap_entry(struct kprobe *p, struct pt_regs *regs)
 	/* __x64_sys_mremap: regs->di 是 pt_regs 指针，参数从中取 */
 	struct pt_regs *real_regs = (struct pt_regs *)regs->di;
 	unsigned long old_addr = real_regs->di;
-	unsigned long old_len = real_regs->si;
-	unsigned long new_len = real_regs->dx;
-	unsigned long flags = real_regs->r10;
+	// unsigned long old_len = real_regs->si;
+	// unsigned long new_len = real_regs->dx;
+	// unsigned long flags = real_regs->r10;
 	unsigned long new_addr = real_regs->r8;
 #else
 	return 0;
