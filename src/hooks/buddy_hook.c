@@ -139,7 +139,7 @@ int buddy_hook_init(void)
 
     /* 初始化 free_pages kprobe */
     memset(&kp_free_pages, 0, sizeof(kp_free_pages));
-    kp_free_pages.symbol_name = "__free_pages_ok";
+    kp_free_pages.symbol_name = "__free_pages";
     kp_free_pages.pre_handler = free_pages_entry;
     ret = register_kprobe(&kp_free_pages);
     if (ret) {

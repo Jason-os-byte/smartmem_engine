@@ -7,6 +7,8 @@
 #include "config.h"
 #include "strategy.h"
 #include "stats.h"
+#include "trace_monitor.h"
+#include "ebpf_monitor.h"
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -204,7 +206,13 @@ static int stats_show(struct seq_file *m, void *v)
 	seq_printf(m, "  local_alloc:  %llu\n", smartmem_stats_get_numa_local());
 	seq_printf(m, "  remote_alloc: %llu\n", smartmem_stats_get_numa_remote());
 
-	return 0;
+    seq_printf(m, "\nMonitoring:\n");
+	seq_printf(m, "  ebpf_active:    %s\n", ebpf_monitor_is_active() ? "yes" : "no");
+	seq_printf(m, "  trace_events:   %llu\n", trace_monitor_get_event_count());
+	seq_printf(m, "  trace_allocs:   %llu\n", trace_monitor_get_alloc_count());
+	seq_printf(m, "  trace_frees:    %llu\n", trace_monitor_get_free_count());
+	
+    return 0;
 }
 
 static int stats_open(struct inode *inode, struct file *file)
@@ -214,6 +222,28 @@ static int stats_open(struct inode *inode, struct file *file)
 
 static const struct proc_ops stats_proc_ops = {
 	.proc_open = stats_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+};
+
+/* hotspots 显示（Day 41 框架，Day 43-46 实现真实热点） */
+static int hotspots_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "SmartMemEngine Hotspots\n");
+	seq_printf(m, "=======================\n\n");
+	seq_printf(m, "Hotspot analysis will be implemented in Day 43-46\n");
+
+	return 0;
+}
+
+static int hotspots_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, hotspots_show, NULL);
+}
+
+static const struct proc_ops hotspots_proc_ops = {
+	.proc_open = hotspots_open,
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
@@ -256,6 +286,14 @@ int smartmem_proc_init(void)
 		return -ENOMEM;
 	}
 
+    if (!proc_create("hotspots", 0444, smartmem_dir, &hotspots_proc_ops)) {
+		pr_err("smartmem: failed to create /proc/smartmem/hotspots\n");
+		remove_proc_entry("stats", smartmem_dir);
+		remove_proc_entry("config", smartmem_dir);
+		remove_proc_entry("smartmem", NULL);
+		return -ENOMEM;
+	}
+
     pr_info("smartmem: procfs initialized\n");
     return 0;
 }
@@ -266,6 +304,7 @@ void smartmem_proc_exit(void)
     pr_info("smartmem: procfs exiting...\n");
 
     if (smartmem_dir) {
+        remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
