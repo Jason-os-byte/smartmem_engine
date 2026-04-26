@@ -81,6 +81,12 @@ static int __init smartmem_init(void)
         goto err_monitor;
     }
 
+    /* 启动监控系统 */
+    ret = smartmem_monitor_start();
+    if (ret) {
+        pr_warn("%s: monitor start failed, continuing without monitoring\n", SMARTMEM_NAME);
+    }
+
     /* 初始化分析引擎 */
     ret = smartmem_analysis_init();
     if (ret) {
@@ -145,6 +151,7 @@ static void __exit smartmem_exit(void)
     smartmem_interface_exit();
     smartmem_optimization_exit();
     smartmem_analysis_exit();
+    smartmem_monitor_stop();
     smartmem_monitor_exit();
     smartmem_strategy_exit();
     smartmem_hook_exit();
