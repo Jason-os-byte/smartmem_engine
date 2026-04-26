@@ -4,11 +4,17 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/kallsyms.h>
 #include "config.h"
 #include "strategy.h"
 #include "stats.h"
 #include "trace_monitor.h"
 #include "ebpf_monitor.h"
+#include "analysis.h"
+#include "hotspot.h"
+#include "bottleneck.h"
+#include "root_cause.h"
+#include "auto_tune.h"
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -227,14 +233,53 @@ static const struct proc_ops stats_proc_ops = {
 	.proc_release = single_release,
 };
 
-/* hotspots 显示（Day 41 框架，Day 43-46 实现真实热点） */
+/* hotspots 显示 */
 static int hotspots_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "SmartMemEngine Hotspots\n");
-	seq_printf(m, "=======================\n\n");
-	seq_printf(m, "Hotspot analysis will be implemented in Day 43-46\n");
+    struct hotspot_top_entry *top;
+    int count, i;
 
-	return 0;
+    top = kmalloc_array(HOTSPOT_TOP_N, sizeof(struct hotspot_top_entry),
+                        GFP_KERNEL);
+    if (!top)
+        return -ENOMEM;
+
+    seq_printf(m, "SmartMemEngine Hotspots (Top %d)\n", HOTSPOT_TOP_N);
+    seq_printf(m, "================================\n\n");
+
+    count = smartmem_analysis_get_hotspots(top, HOTSPOT_TOP_N);
+    if (count <= 0) {
+        seq_printf(m, "No hotspot data available.\n");
+        seq_printf(m, "Hotspots are tracked for slow allocations (>100us).\n");
+        return 0;
+    }
+
+    for (i = 0; i < count; i++) {
+        seq_printf(m, "--- Hotspot #%d (score=%llu) ---\n", i + 1, top[i].score);
+        seq_printf(m, "  alloc_count:    %llu\n", top[i].alloc_count);
+        seq_printf(m, "  alloc_pages:    %llu\n", top[i].alloc_pages);
+        seq_printf(m, "  latency_avg:    %lluns\n", top[i].latency_avg_ns);
+        seq_printf(m, "  latency_max:    %lluns\n", top[i].latency_max_ns);
+        seq_printf(m, "  stack_hash:     0x%08x\n", top[i].stack_hash);
+        seq_printf(m, "  call_stack:\n");
+
+        /* 用 sprint_symbol 解析符号 */
+        if (top[i].stack_depth > 0) {
+            int j;
+            for (j = 0; j < top[i].stack_depth && j < HOTSPOT_STACK_DEPTH; j++) {
+                char sym[KSYM_SYMBOL_LEN];
+                if (top[i].stack_frames[j] == 0)
+                    break;
+                sprint_symbol(sym, top[i].stack_frames[j]);
+                seq_printf(m, "    [%d] %s\n", j, sym);
+            }
+        }
+        seq_printf(m, "\n");
+    }
+
+    kfree(top);
+
+    return 0;
 }
 
 static int hotspots_open(struct inode *inode, struct file *file)
@@ -247,6 +292,220 @@ static const struct proc_ops hotspots_proc_ops = {
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
+};
+
+/* 瓶颈分析显示 */
+static int bottlenecks_show(struct seq_file *m, void *v)
+{
+    struct bottleneck_entry *entries;
+    int count, i;
+
+    entries = kmalloc_array(MAX_BOTTLENECKS, sizeof(struct bottleneck_entry),
+                            GFP_KERNEL);
+    if (!entries)
+        return -ENOMEM;
+
+    seq_printf(m, "SmartMemEngine Bottlenecks\n");
+    seq_printf(m, "=========================\n\n");
+
+    /* 读取前触发分析 */
+    smartmem_analysis_bottleneck_update();
+
+    count = smartmem_analysis_get_bottlenecks(entries, MAX_BOTTLENECKS);
+    if (count <= 0) {
+        seq_printf(m, "No bottlenecks detected.\n");
+        kfree(entries);
+        return 0;
+    }
+
+    for (i = 0; i < count; i++) {
+        static const char *type_str[] = {
+            "none", "slow_alloc", "high_fragment",
+            "numa_imbalance", "low_slab_hit", "oom_risk"
+        };
+        static const char *sev_str[] = {
+            "low", "medium", "high", "critical"
+        };
+
+        seq_printf(m, "--- Bottleneck #%d ---\n", i + 1);
+        seq_printf(m, "  type:       %s\n",
+                   entries[i].type < 6 ? type_str[entries[i].type] : "unknown");
+        seq_printf(m, "  severity:   %s\n",
+                   entries[i].severity < 4 ? sev_str[entries[i].severity] : "unknown");
+        seq_printf(m, "  value:      %llu\n", entries[i].value);
+        seq_printf(m, "  threshold:  %llu\n", entries[i].threshold);
+        seq_printf(m, "  desc:       %s\n", entries[i].description);
+        seq_printf(m, "\n");
+    }
+
+    kfree(entries);
+    return 0;
+}
+
+static int bottlenecks_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, bottlenecks_show, NULL);
+}
+
+static const struct proc_ops bottlenecks_proc_ops = {
+    .proc_open = bottlenecks_open,
+    .proc_read = seq_read,
+    .proc_lseek = seq_lseek,
+    .proc_release = single_release,
+};
+
+static const char *rc_type_str[] = {
+    "none", "kswapd_pressure", "direct_reclaim",
+    "compact_fail", "slab_bloat", "misplaced_numa"
+};
+
+/* 根因分析显示 */
+static int rootcauses_show(struct seq_file *m, void *v)
+{
+    struct root_cause_entry *entries;
+    int count, i;
+
+    entries = kmalloc_array(MAX_ROOT_CAUSES, sizeof(struct root_cause_entry),
+                            GFP_KERNEL);
+    if (!entries)
+        return -ENOMEM;
+
+    seq_printf(m, "SmartMemEngine Root Cause Analysis\n");
+    seq_printf(m, "==================================\n\n");
+
+    /* 读取前触发分析（瓶颈+根因） */
+    smartmem_analysis_bottleneck_update();
+    smartmem_analysis_root_cause_update();
+
+    count = smartmem_analysis_get_root_causes(entries, MAX_ROOT_CAUSES);
+    if (count <= 0) {
+        seq_printf(m, "No root causes identified.\n");
+        kfree(entries);
+        return 0;
+    }
+
+    for (i = 0; i < count; i++) {
+        seq_printf(m, "--- Root Cause #%d ---\n", i + 1);
+        seq_printf(m, "  type:        %s\n", entries[i].type < 6 ? rc_type_str[entries[i].type] : "unknown");
+        seq_printf(m, "  confidence:  %llu%%\n", entries[i].confidence);
+        seq_printf(m, "  desc:        %s\n", entries[i].description);
+        seq_printf(m, "  suggestion:  %s\n", entries[i].suggestion);
+        seq_printf(m, "\n");
+    }
+
+    kfree(entries);
+    return 0;
+}
+
+static int rootcauses_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, rootcauses_show, NULL);
+}
+
+static const struct proc_ops rootcauses_proc_ops = {
+    .proc_open = rootcauses_open,
+    .proc_read = seq_read,
+    .proc_lseek = seq_lseek,
+    .proc_release = single_release,
+};
+
+static const char *tune_action_str[] = {
+    "none", "compact", "adjust_watermark",
+    "numa_migrate", "adjust_slab"
+};
+
+/* 自动调优状态显示 */
+static int autotune_show(struct seq_file *m, void *v)
+{
+    struct tune_stats stats;
+    struct tune_history *history;
+    int count, i;
+
+    seq_printf(m, "SmartMemEngine Auto-Tune\n");
+    seq_printf(m, "========================\n\n");
+
+    /* 显示统计 */
+    auto_tune_get_stats(&stats);
+    seq_printf(m, "Statistics:\n");
+    seq_printf(m, "  total_tunes:    %llu\n", atomic64_read(&stats.total_tune_count));
+    seq_printf(m, "  compact:        %llu\n", atomic64_read(&stats.compact_count));
+    seq_printf(m, "  watermark:      %llu\n", atomic64_read(&stats.watermark_count));
+    seq_printf(m, "  numa_migrate:   %llu\n", atomic64_read(&stats.numa_migrate_count));
+    seq_printf(m, "  slab_adjust:    %llu\n", atomic64_read(&stats.slab_adjust_count));
+    seq_printf(m, "  failures:       %llu\n", atomic64_read(&stats.fail_count));
+    seq_printf(m, "\n");
+
+    /* 显示历史 */
+    history = kmalloc_array(MAX_TUNE_HISTORY, sizeof(struct tune_history),
+                            GFP_KERNEL);
+    if (!history)
+        return -ENOMEM;
+
+    count = auto_tune_get_history(history, MAX_TUNE_HISTORY);
+    if (count > 0) {
+        seq_printf(m, "Recent Tune History:\n");
+        for (i = 0; i < count; i++) {
+            seq_printf(m, "  [%d] action=%-16s result=%d  %s\n",
+                       i + 1,
+                       history[i].action < 5 ?
+                           tune_action_str[history[i].action] : "unknown",
+                       history[i].result,
+                       history[i].description);
+        }
+    } else {
+        seq_printf(m, "No tune history yet.\n");
+    }
+
+    kfree(history);
+    return 0;
+}
+
+static int autotune_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, autotune_show, NULL);
+}
+
+/* autotune 写入：手动触发调优 */
+static ssize_t autotune_write(struct file *file, const char __user *buffer,
+                               size_t count, loff_t *ppos)
+{
+    char buf[32];
+    int action;
+
+    if (count > sizeof(buf) - 1)
+        return -EINVAL;
+
+    if (copy_from_user(buf, buffer, count))
+        return -EFAULT;
+
+    buf[count] = '\0';
+    if (buf[count - 1] == '\n')
+        buf[count - 1] = '\0';
+
+    if (strcmp(buf, "compact") == 0)
+        action = TUNE_ACTION_COMPACT;
+    else if (strcmp(buf, "watermark") == 0)
+        action = TUNE_ACTION_ADJUST_WATERMARK;
+    else if (strcmp(buf, "numa") == 0)
+        action = TUNE_ACTION_NUMA_MIGRATE;
+    else if (strcmp(buf, "slab") == 0)
+        action = TUNE_ACTION_ADJUST_SLAB;
+    else if (strcmp(buf, "check") == 0)
+        return count;  /* check 通过读取触发 */
+    else
+        return -EINVAL;
+
+    auto_tune_trigger(action);
+
+    return count;
+}
+
+static const struct proc_ops autotune_proc_ops = {
+    .proc_open = autotune_open,
+    .proc_read = seq_read,
+    .proc_write = autotune_write,
+    .proc_lseek = seq_lseek,
+    .proc_release = single_release,
 };
 
 /**
@@ -280,8 +539,8 @@ int smartmem_proc_init(void)
 
     if (!proc_create("stats", 0444, smartmem_dir, &stats_proc_ops)) {
 		pr_err("smartmem: failed to create /proc/smartmem/stats\n");
-		remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+		remove_proc_entry("config", smartmem_dir);
 		remove_proc_entry("smartmem", NULL);
 		return -ENOMEM;
 	}
@@ -289,10 +548,44 @@ int smartmem_proc_init(void)
     if (!proc_create("hotspots", 0444, smartmem_dir, &hotspots_proc_ops)) {
 		pr_err("smartmem: failed to create /proc/smartmem/hotspots\n");
 		remove_proc_entry("stats", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
 		remove_proc_entry("config", smartmem_dir);
 		remove_proc_entry("smartmem", NULL);
 		return -ENOMEM;
 	}
+
+    if (!proc_create("bottlenecks", 0444, smartmem_dir, &bottlenecks_proc_ops)) {
+        pr_err("smartmem: failed to create /proc/smartmem/bottlenecks\n");
+        remove_proc_entry("hotspots", smartmem_dir);
+        remove_proc_entry("stats", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
+
+    if (!proc_create("rootcauses", 0444, smartmem_dir, &rootcauses_proc_ops)) {
+        pr_err("smartmem: failed to create /proc/smartmem/rootcauses\n");
+        remove_proc_entry("bottlenecks", smartmem_dir);
+        remove_proc_entry("hotspots", smartmem_dir);
+        remove_proc_entry("stats", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
+
+    if (!proc_create("autotune", 0644, smartmem_dir, &autotune_proc_ops)) {
+        pr_err("smartmem: failed to create /proc/smartmem/autotune\n");
+        remove_proc_entry("rootcauses", smartmem_dir);
+        remove_proc_entry("bottlenecks", smartmem_dir);
+        remove_proc_entry("hotspots", smartmem_dir);
+        remove_proc_entry("stats", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
 
     pr_info("smartmem: procfs initialized\n");
     return 0;
@@ -304,6 +597,9 @@ void smartmem_proc_exit(void)
     pr_info("smartmem: procfs exiting...\n");
 
     if (smartmem_dir) {
+        remove_proc_entry("autotune", smartmem_dir);
+        remove_proc_entry("rootcauses", smartmem_dir);
+        remove_proc_entry("bottlenecks", smartmem_dir);
         remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);

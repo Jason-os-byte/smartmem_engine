@@ -3,6 +3,7 @@
 #include "optimization.h"
 #include "auto_tune.h"
 #include "predictive.h"
+#include <linux/ktime.h>
 
 static struct smartmem_optimization g_optimization = {
     .auto_tune_enabled = false,
@@ -109,4 +110,28 @@ int smartmem_optimization_stop(void)
 
     pr_info("smartmem: optimization stopped\n");
     return 0;
+}
+
+int smartmem_optimization_tune_check(void)
+{
+    if (!g_optimization.auto_tune_enabled)
+        return -ENODEV;
+    return auto_tune_check();
+}
+
+int smartmem_optimization_tune_trigger(int action)
+{
+    if (!g_optimization.auto_tune_enabled)
+        return -ENODEV;
+    return auto_tune_trigger((enum tune_action)action);
+}
+
+void smartmem_optimization_get_tune_stats(struct tune_stats *stats)
+{
+    auto_tune_get_stats(stats);
+}
+
+int smartmem_optimization_get_tune_history(struct tune_history *entries, int max)
+{
+    return auto_tune_get_history(entries, max);
 }

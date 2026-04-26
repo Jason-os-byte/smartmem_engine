@@ -111,3 +111,27 @@ int smartmem_analysis_root_cause_update(void)
 
     return root_cause_update();
 }
+
+int smartmem_analysis_get_bottlenecks(struct bottleneck_entry *entries, int n)
+{
+    if (!g_analysis.bottleneck_enabled)
+        return -ENODEV;
+
+    return bottleneck_get_entries(entries, n);
+}
+
+int smartmem_analysis_get_root_causes(struct root_cause_entry *entries, int n)
+{
+    if (!g_analysis.root_cause_enabled)
+        return -ENODEV;
+
+    return root_cause_get_entries(entries, n);
+}
+
+int smartmem_analysis_get_hotspots(struct hotspot_top_entry *entries, int n)
+{
+    if (!g_analysis.hotspot_enabled)
+        return -ENODEV;
+
+    return hotspot_get_top_n(entries, n);
+}

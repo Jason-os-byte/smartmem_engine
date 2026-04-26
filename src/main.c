@@ -101,6 +101,13 @@ static int __init smartmem_init(void)
         goto err_optimization;
     }
 
+    /* 启动自动调优 */
+    ret = smartmem_optimization_start();
+    if (ret) {
+        pr_warn("%s: optimization start failed, continuing without auto-tune\n",
+                SMARTMEM_NAME);
+    }
+
     /* 初始化接口层 */
     ret = smartmem_interface_init();
     if (ret) {
@@ -149,6 +156,7 @@ static void __exit smartmem_exit(void)
     g_sm_state->state = SMARTMEM_STATE_STOPPING;
 
     smartmem_interface_exit();
+    smartmem_optimization_stop();
     smartmem_optimization_exit();
     smartmem_analysis_exit();
     smartmem_monitor_stop();

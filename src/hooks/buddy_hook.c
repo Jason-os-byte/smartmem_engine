@@ -2,6 +2,10 @@
 
 #include "buddy_hook.h"
 #include "stats.h"
+#include "hotspot.h"
+#include <linux/stacktrace.h>
+
+#define STACK_DEPTH 16
 
 /* Hook 实例 */
 static  struct smartmem_hook buddy_hook_inst = {
@@ -18,6 +22,12 @@ static struct kprobe kp_free_pages;
 
 /* per-CPU 参数缓存 */
 static DEFINE_PER_CPU(struct buddy_alloc_args, buddy_args);
+
+/* 捕获当前调用栈 */
+static int capture_stack(unsigned long *frames, int max_depth)
+{
+    return stack_trace_save(frames, max_depth, 3);
+}
 
 /**
  * alloc_pages 入口处理
@@ -74,7 +84,16 @@ static int alloc_pages_return(struct kretprobe_instance *ri, struct pt_regs *reg
     /* 更新统计 */
     smartmem_stats_buddy_alloc_inc();
 
-    /* TODO: 调用策略引擎 */
+    /* 记录到热点分析 */
+    if (delta_ns > 100000) { /* 只记录 >100us 的慢分配 */
+        unsigned long frames[HOTSPOT_STACK_DEPTH];
+        int depth;
+
+        depth = capture_stack(frames, HOTSPOT_STACK_DEPTH);
+        if (depth > 0)
+            hotspot_record_alloc(frames, depth, args->order, delta_ns);
+    }
+
     if (delta_ns > 1000000) {
         pr_debug("smartmem: slow buddy alloc: order=%d, gfp=%x, time=%lldns\n",
                     args->order, args->gfp_mask, delta_ns);       
