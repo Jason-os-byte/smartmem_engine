@@ -16,6 +16,12 @@
 #include "root_cause.h"
 #include "auto_tune.h"
 #include "predictive.h"
+#include "numa_buddy.h"
+#include "adaptive_slub.h"
+#include "multi_gen_lru.h"
+#include "numa_balance.h"
+#include "monitor.h"
+
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -128,53 +134,86 @@ static int policies_show(struct seq_file *m, void *v)
     struct buddy_strategy *buddy_stra;
     struct slub_strategy *slub_stra;
     struct lru_strategy *ls;
-	struct numa_strategy *ns;
+    struct numa_strategy *ns;
 
-    seq_printf(m, "SmartmemEngine Policies\n");
-    seq_printf(m, "=======================\n");
+    seq_printf(m, "SmartMemEngine Policies\n");
+    seq_printf(m, "=======================\n\n");
 
-    seq_printf(m, "Buddy Strategies:\n");
+    /* Buddy 策略 */
+    seq_printf(m, "Buddy Strategy:\n");
     buddy_stra = buddy_strategy_get_current();
     if (buddy_stra) {
-        seq_printf(m, "  Current: %s (enabled)\n", buddy_stra->name);
-        seq_printf(m, "  Version: %s\n", buddy_stra->version);
+        u64 local, remote, forced;
+        seq_printf(m, "  Name:        %s\n", buddy_stra->name);
+        seq_printf(m, "  Version:     %s\n", buddy_stra->version);
         seq_printf(m, "  Description: %s\n", buddy_stra->description);
+        seq_printf(m, "  Enabled:     yes\n");
+        numa_buddy_get_stats(&local, &remote, &forced);
+        seq_printf(m, "  Statistics:\n");
+        seq_printf(m, "    local_alloc:   %llu\n", local);
+        seq_printf(m, "    remote_alloc:  %llu\n", remote);
+        seq_printf(m, "    forced_alloc:  %llu\n", forced);
     } else {
         seq_printf(m, "  No active strategy\n");
     }
 
-    //SLUB 策略
-    seq_printf(m, "\nSLUB Strategies:\n");
+    /* SLUB 策略 */
+    seq_printf(m, "\nSLUB Strategy:\n");
     slub_stra = slub_strategy_get_current();
     if (slub_stra) {
-        seq_printf(m, " Current: %s (enabled)\n", slub_stra->name);
-        seq_printf(m, " Version: %s\n", slub_stra->version);
-        seq_printf(m, " Description: %s\n", slub_stra->description);
+        u64 alloc, free, hit, miss, tune;
+        seq_printf(m, "  Name:        %s\n", slub_stra->name);
+        seq_printf(m, "  Version:     %s\n", slub_stra->version);
+        seq_printf(m, "  Description: %s\n", slub_stra->description);
+        seq_printf(m, "  Enabled:     yes\n");
+        adaptive_slub_get_stats(&alloc, &free, &hit, &miss, &tune);
+        seq_printf(m, "  Statistics:\n");
+        seq_printf(m, "    alloc_count:   %llu\n", alloc);
+        seq_printf(m, "    free_count:    %llu\n", free);
+        seq_printf(m, "    percpu_hit:    %llu\n", hit);
+        seq_printf(m, "    percpu_miss:   %llu\n", miss);
+        seq_printf(m, "    tune_count:    %llu\n", tune);
     } else {
-        seq_printf(m, " No active strategy\n");
+        seq_printf(m, "  No active strategy\n");
     }
 
     /* LRU 策略 */
-	seq_printf(m, "\nLRU Strategies:\n");
-	ls = lru_strategy_get_current();
-	if (ls) {
-		seq_printf(m, "  Current: %s (enabled)\n", ls->name);
-		seq_printf(m, "  Version: %s\n", ls->version);
-		seq_printf(m, "  Description: %s\n", ls->description);
-	} else {
-		seq_printf(m, "  No active strategy\n");
-	}
+    seq_printf(m, "\nLRU Strategy:\n");
+    ls = lru_strategy_get_current();
+    if (ls) {
+        u64 young_acc, old_acc, promote, demote, evict;
+        seq_printf(m, "  Name:        %s\n", ls->name);
+        seq_printf(m, "  Version:     %s\n", ls->version);
+        seq_printf(m, "  Description: %s\n", ls->description);
+        seq_printf(m, "  Enabled:     yes\n");
+        mglru_get_stats(&young_acc, &old_acc, &promote, &demote, &evict);
+        seq_printf(m, "  Statistics:\n");
+        seq_printf(m, "    young_accessed: %llu\n", young_acc);
+        seq_printf(m, "    old_accessed:   %llu\n", old_acc);
+        seq_printf(m, "    promote_count:  %llu\n", promote);
+        seq_printf(m, "    demote_count:   %llu\n", demote);
+        seq_printf(m, "    evict_count:    %llu\n", evict);
+    } else {
+        seq_printf(m, "  No active strategy\n");
+    }
 
-	/* NUMA 策略 */
-	seq_printf(m, "\nNUMA Strategies:\n");
-	ns = numa_strategy_get_current();
-	if (ns) {
-		seq_printf(m, "  Current: %s (enabled)\n", ns->name);
-		seq_printf(m, "  Version: %s\n", ns->version);
-		seq_printf(m, "  Description: %s\n", ns->description);
-	} else {
-		seq_printf(m, "  No active strategy\n");
-	}
+    /* NUMA 策略 */
+    seq_printf(m, "\nNUMA Strategy:\n");
+    ns = numa_strategy_get_current();
+    if (ns) {
+        u64 migrations, imbalance_det, balance;
+        seq_printf(m, "  Name:        %s\n", ns->name);
+        seq_printf(m, "  Version:     %s\n", ns->version);
+        seq_printf(m, "  Description: %s\n", ns->description);
+        seq_printf(m, "  Enabled:     yes\n");
+        numa_balance_get_stats(&migrations, &imbalance_det, &balance);
+        seq_printf(m, "  Statistics:\n");
+        seq_printf(m, "    migrations:         %llu\n", migrations);
+        seq_printf(m, "    imbalance_detects:  %llu\n", imbalance_det);
+        seq_printf(m, "    balance_actions:    %llu\n", balance);
+    } else {
+        seq_printf(m, "  No active strategy\n");
+    }
 
     return 0;
 }
@@ -197,28 +236,49 @@ static const struct proc_ops policies_proc_ops = {
 static int stats_show(struct seq_file *m, void *v)
 {
     seq_printf(m, "SmartMemEngine Statistics\n");
-	seq_printf(m, "=========================\n\n");
+    seq_printf(m, "=========================\n\n");
 
-	seq_printf(m, "Buddy Allocator:\n");
-	seq_printf(m, "  alloc_count: %llu\n", smartmem_stats_get_buddy_alloc());
-	seq_printf(m, "  free_count:  %llu\n", smartmem_stats_get_buddy_free());
-	seq_printf(m, "\n");
+    seq_printf(m, "Buddy Allocator:\n");
+    seq_printf(m, "  alloc_count: %llu\n", smartmem_stats_get_buddy_alloc());
+    seq_printf(m, "  free_count:  %llu\n", smartmem_stats_get_buddy_free());
+    seq_printf(m, "\n");
 
-	seq_printf(m, "SLUB Allocator:\n");
-	seq_printf(m, "  alloc_count: %llu\n", smartmem_stats_get_slub_alloc());
-	seq_printf(m, "  free_count:  %llu\n", smartmem_stats_get_slub_free());
-	seq_printf(m, "\n");
+    seq_printf(m, "SLUB Allocator:\n");
+    seq_printf(m, "  alloc_count: %llu\n", smartmem_stats_get_slub_alloc());
+    seq_printf(m, "  free_count:  %llu\n", smartmem_stats_get_slub_free());
+    seq_printf(m, "\n");
 
-	seq_printf(m, "NUMA:\n");
-	seq_printf(m, "  local_alloc:  %llu\n", smartmem_stats_get_numa_local());
-	seq_printf(m, "  remote_alloc: %llu\n", smartmem_stats_get_numa_remote());
+    seq_printf(m, "NUMA:\n");
+    seq_printf(m, "  local_alloc:  %llu\n", smartmem_stats_get_numa_local());
+    seq_printf(m, "  remote_alloc: %llu\n", smartmem_stats_get_numa_remote());
+    seq_printf(m, "\n");
 
-    seq_printf(m, "\nMonitoring:\n");
-	seq_printf(m, "  ebpf_active:    %s\n", ebpf_monitor_is_active() ? "yes" : "no");
-	seq_printf(m, "  trace_events:   %llu\n", trace_monitor_get_event_count());
-	seq_printf(m, "  trace_allocs:   %llu\n", trace_monitor_get_alloc_count());
-	seq_printf(m, "  trace_frees:    %llu\n", trace_monitor_get_free_count());
-	
+    seq_printf(m, "Monitoring:\n");
+    seq_printf(m, "  ebpf_active:    %s\n", ebpf_monitor_is_active() ? "yes" : "no");
+    seq_printf(m, "  trace_events:   %llu\n", trace_monitor_get_event_count());
+    seq_printf(m, "  trace_allocs:   %llu\n", trace_monitor_get_alloc_count());
+    seq_printf(m, "  trace_frees:    %llu\n", trace_monitor_get_free_count());
+    seq_printf(m, "\n");
+
+    seq_printf(m, "Auto-Tune:\n");
+    {
+        struct tune_stats ts;
+        auto_tune_get_stats(&ts);
+        seq_printf(m, "  total_tunes:    %llu\n", atomic64_read(&ts.total_tune_count));
+        seq_printf(m, "  compact:        %llu\n", atomic64_read(&ts.compact_count));
+        seq_printf(m, "  failures:       %llu\n", atomic64_read(&ts.fail_count));
+    }
+    seq_printf(m, "\n");
+
+    seq_printf(m, "Prediction:\n");
+    {
+        struct predict_stats ps;
+        predictive_get_stats(&ps);
+        seq_printf(m, "  samples:        %llu\n", atomic64_read(&ps.sample_count));
+        seq_printf(m, "  predictions:    %llu\n", atomic64_read(&ps.prediction_count));
+        seq_printf(m, "  oom_predicts:   %llu\n", atomic64_read(&ps.oom_predict_count));
+    }
+
     return 0;
 }
 
@@ -572,6 +632,136 @@ static const struct proc_ops prediction_proc_ops = {
     .proc_release = single_release,
 };
 
+/* control 写入处理 */
+static ssize_t control_write(struct file *file, const char __user *buffer,
+                              size_t count, loff_t *ppos)
+{
+    char buf[128];
+    char *cmd, *arg;
+
+    if (count > sizeof(buf) - 1)
+        return -EINVAL;
+
+    if (copy_from_user(buf, buffer, count))
+        return -EFAULT;
+
+    buf[count] = '\0';
+    if (count > 0 && buf[count - 1] == '\n')
+        buf[count - 1] = '\0';
+
+    /* 解析 "cmd arg" 格式 */
+    cmd = buf;
+    arg = strchr(buf, ' ');
+    if (arg) {
+        *arg++ = '\0';
+    }
+
+    if (strcmp(cmd, "enable") == 0 && arg) {
+        /* 启用功能: enable hook_buddy, enable trace, enable autotune */
+        smartmem_config_set(arg, "true");
+        pr_info("smartmem: control: enabled %s\n", arg);
+
+        /* 对 autotune 特殊处理 */
+        if (strcmp(arg, "auto_tune_enabled") == 0)
+            auto_tune_start();
+        if (strcmp(arg, "trace_enabled") == 0)
+            smartmem_monitor_start();
+
+    } else if (strcmp(cmd, "disable") == 0 && arg) {
+        /* 禁用功能: disable hook_buddy, disable trace, disable autotune */
+        smartmem_config_set(arg, "false");
+        pr_info("smartmem: control: disabled %s\n", arg);
+
+        if (strcmp(arg, "auto_tune_enabled") == 0)
+            auto_tune_stop();
+        if (strcmp(arg, "trace_enabled") == 0)
+            smartmem_monitor_stop();
+
+    } else if (strcmp(cmd, "reset") == 0 && arg) {
+        /* 重置: reset stats, reset hotspots, reset autotune */
+        if (strcmp(arg, "stats") == 0) {
+            smartmem_stats_reset();
+            pr_info("smartmem: control: stats reset\n");
+        } else if (strcmp(arg, "hotspots") == 0) {
+            hotspot_reset();
+            pr_info("smartmem: control: hotspots reset\n");
+        } else if (strcmp(arg, "autotune") == 0) {
+            auto_tune_reset_stats();
+            pr_info("smartmem: control: autotune stats reset\n");
+        } else if (strcmp(arg, "prediction") == 0) {
+            predictive_reset();
+            pr_info("smartmem: control: prediction model reset\n");
+        } else {
+            return -EINVAL;
+        }
+
+    } else if (strcmp(cmd, "tune") == 0 && arg) {
+        /* 手动调优: tune compact, tune watermark, tune numa, tune slab */
+        if (strcmp(arg, "compact") == 0)
+            auto_tune_trigger(TUNE_ACTION_COMPACT);
+        else if (strcmp(arg, "watermark") == 0)
+            auto_tune_trigger(TUNE_ACTION_ADJUST_WATERMARK);
+        else if (strcmp(arg, "numa") == 0)
+            auto_tune_trigger(TUNE_ACTION_NUMA_MIGRATE);
+        else if (strcmp(arg, "slab") == 0)
+            auto_tune_trigger(TUNE_ACTION_ADJUST_SLAB);
+        else
+            return -EINVAL;
+
+    } else if (strcmp(cmd, "set") == 0 && arg) {
+        /* 设置配置: set key=value (透传给 config) */
+        char *val = strchr(arg, '=');
+        if (!val)
+            return -EINVAL;
+        *val++ = '\0';
+        smartmem_config_set(arg, val);
+        pr_info("smartmem: control: set %s=%s\n", arg, val);
+
+    } else {
+        return -EINVAL;
+    }
+
+    return count;
+}
+
+static int control_show(struct seq_file *m, void *v)
+{
+    seq_printf(m, "SmartMemEngine Control\n");
+    seq_printf(m, "======================\n\n");
+    seq_printf(m, "Commands (write to this file):\n");
+    seq_printf(m, "  enable <feature>    - Enable a feature\n");
+    seq_printf(m, "  disable <feature>   - Disable a feature\n");
+    seq_printf(m, "  reset <target>      - Reset stats/hotspots/autotune/prediction\n");
+    seq_printf(m, "  tune <action>       - Trigger manual tune (compact/watermark/numa/slab)\n");
+    seq_printf(m, "  set <key>=<value>   - Set configuration\n");
+    seq_printf(m, "\n");
+    seq_printf(m, "Features: hook_buddy_enabled, hook_slub_enabled, hook_vma_enabled,\n");
+    seq_printf(m, "          hook_lru_enabled, hook_numa_enabled, numa_aware_enabled,\n");
+    seq_printf(m, "          adaptive_slub_enabled, ebpf_enabled, trace_enabled,\n");
+    seq_printf(m, "          auto_tune_enabled\n");
+    seq_printf(m, "\n");
+    seq_printf(m, "Examples:\n");
+    seq_printf(m, "  echo 'enable auto_tune_enabled' > /proc/smartmem/control\n");
+    seq_printf(m, "  echo 'disable trace_enabled' > /proc/smartmem/control\n");
+    seq_printf(m, "  echo 'reset stats' > /proc/smartmem/control\n");
+    seq_printf(m, "  echo 'tune compact' > /proc/smartmem/control\n");
+
+    return 0;
+}
+
+static int control_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, control_show, NULL);
+}
+
+static const struct proc_ops control_proc_ops = {
+    .proc_open = control_open,
+    .proc_read = seq_read,
+    .proc_write = control_write,
+    .proc_lseek = seq_lseek,
+    .proc_release = single_release,
+};
+
 /**
  * procfs初始化
  */
@@ -593,9 +783,17 @@ int smartmem_proc_init(void)
         return -ENOMEM;
     }
 
+    if (!proc_create("control", 0644, smartmem_dir, &control_proc_ops)) {
+        pr_err("smartmem: failed to create /proc/smartmem/control\n");
+        remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
+
     // 创建 /proc/smartmem/policies
     if (!proc_create("policies", 0444, smartmem_dir, &policies_proc_ops)) {
         pr_err("smartmem: failed to create /prco/smartmem/policies\n");
+        remove_proc_entry("control", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         return -ENOMEM;
@@ -604,6 +802,7 @@ int smartmem_proc_init(void)
     if (!proc_create("stats", 0444, smartmem_dir, &stats_proc_ops)) {
 		pr_err("smartmem: failed to create /proc/smartmem/stats\n");
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
 		remove_proc_entry("config", smartmem_dir);
 		remove_proc_entry("smartmem", NULL);
 		return -ENOMEM;
@@ -613,6 +812,7 @@ int smartmem_proc_init(void)
 		pr_err("smartmem: failed to create /proc/smartmem/hotspots\n");
 		remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
 		remove_proc_entry("config", smartmem_dir);
 		remove_proc_entry("smartmem", NULL);
 		return -ENOMEM;
@@ -623,6 +823,7 @@ int smartmem_proc_init(void)
         remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         return -ENOMEM;
@@ -634,6 +835,7 @@ int smartmem_proc_init(void)
         remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         return -ENOMEM;
@@ -646,6 +848,7 @@ int smartmem_proc_init(void)
         remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         return -ENOMEM;
@@ -659,6 +862,7 @@ int smartmem_proc_init(void)
         remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         return -ENOMEM;
@@ -681,6 +885,7 @@ void smartmem_proc_exit(void)
         remove_proc_entry("hotspots", smartmem_dir);
         remove_proc_entry("stats", smartmem_dir);
         remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
         remove_proc_entry("config", smartmem_dir);
         remove_proc_entry("smartmem", NULL);
         smartmem_dir = NULL;
