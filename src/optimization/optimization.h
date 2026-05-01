@@ -24,4 +24,8 @@ int smartmem_optimization_tune_trigger(int action);
 void smartmem_optimization_get_tune_stats(struct tune_stats *stats);
 int smartmem_optimization_get_tune_history(struct tune_history *entries, int max);
 
+/* 预测接口 */
+struct prediction_result;
+int smartmem_optimization_predict(struct prediction_result *result);
+
 #endif /* _SMARTMEM_OPTIMIZATION_H */

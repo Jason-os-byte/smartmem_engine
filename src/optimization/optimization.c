@@ -135,3 +135,10 @@ int smartmem_optimization_get_tune_history(struct tune_history *entries, int max
 {
     return auto_tune_get_history(entries, max);
 }
+
+int smartmem_optimization_predict(struct prediction_result *result)
+{
+    if (!g_optimization.predictive_enabled)
+        return -ENODEV;
+    return predictive_predict(result);
+}

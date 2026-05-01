@@ -15,6 +15,7 @@
 #include "bottleneck.h"
 #include "root_cause.h"
 #include "auto_tune.h"
+#include "predictive.h"
 
 static struct proc_dir_entry *smartmem_dir = NULL;
 
@@ -508,6 +509,69 @@ static const struct proc_ops autotune_proc_ops = {
     .proc_release = single_release,
 };
 
+static const char *predict_type_str[] = {
+    "none", "oom_risk", "memory_exhaust", "pressure_increase"
+};
+static const char *predict_sev_str[] = {
+    "low", "medium", "high"
+};
+
+/* 预测结果显示 */
+static int prediction_show(struct seq_file *m, void *v)
+{
+    struct prediction_result result;
+    struct predict_stats stats;
+    int ret;
+
+    seq_printf(m, "SmartMemEngine Memory Prediction\n");
+    seq_printf(m, "================================\n\n");
+
+    /* 执行预测 */
+    ret = predictive_predict(&result);
+    if (ret) {
+        seq_printf(m, "Prediction failed: %d\n", ret);
+        return 0;
+    }
+
+    seq_printf(m, "Prediction Result:\n");
+    seq_printf(m, "  type:            %s\n",
+               result.type < 4 ? predict_type_str[result.type] : "unknown");
+    seq_printf(m, "  severity:        %s\n",
+               result.severity < 3 ? predict_sev_str[result.severity] : "unknown");
+    {
+        unsigned long total = totalram_pages();
+        int cur_free = total > 0 ?
+            (int)((global_zone_page_state(NR_FREE_PAGES) * 100) / total) : 0;
+        seq_printf(m, "  current_free:    %d%%\n", cur_free);
+    }
+    seq_printf(m, "  predicted_free:  %llu%%\n", result.predicted_free_pct);
+    seq_printf(m, "  estimated_time:  %llus\n", result.estimated_time_sec);
+    seq_printf(m, "  confidence:      %llu%%\n", result.confidence);
+    seq_printf(m, "  description:     %s\n", result.description);
+    seq_printf(m, "\n");
+
+    /* 显示采样统计 */
+    predictive_get_stats(&stats);
+    seq_printf(m, "Model Statistics:\n");
+    seq_printf(m, "  samples:         %llu\n", atomic64_read(&stats.sample_count));
+    seq_printf(m, "  predictions:     %llu\n", atomic64_read(&stats.prediction_count));
+    seq_printf(m, "  oom_predictions: %llu\n", atomic64_read(&stats.oom_predict_count));
+
+    return 0;
+}
+
+static int prediction_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, prediction_show, NULL);
+}
+
+static const struct proc_ops prediction_proc_ops = {
+    .proc_open = prediction_open,
+    .proc_read = seq_read,
+    .proc_lseek = seq_lseek,
+    .proc_release = single_release,
+};
+
 /**
  * procfs初始化
  */
@@ -587,6 +651,19 @@ int smartmem_proc_init(void)
         return -ENOMEM;
     }
 
+    if (!proc_create("prediction", 0444, smartmem_dir, &prediction_proc_ops)) {
+        pr_err("smartmem: failed to create /proc/smartmem/prediction\n");
+        remove_proc_entry("autotune", smartmem_dir);
+        remove_proc_entry("rootcauses", smartmem_dir);
+        remove_proc_entry("bottlenecks", smartmem_dir);
+        remove_proc_entry("hotspots", smartmem_dir);
+        remove_proc_entry("stats", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
+
     pr_info("smartmem: procfs initialized\n");
     return 0;
 }
@@ -597,6 +674,7 @@ void smartmem_proc_exit(void)
     pr_info("smartmem: procfs exiting...\n");
 
     if (smartmem_dir) {
+        remove_proc_entry("prediction", smartmem_dir);
         remove_proc_entry("autotune", smartmem_dir);
         remove_proc_entry("rootcauses", smartmem_dir);
         remove_proc_entry("bottlenecks", smartmem_dir);
