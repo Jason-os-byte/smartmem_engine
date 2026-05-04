@@ -2,160 +2,189 @@
 
 ## 项目简介
 
-SmartMemEngine 是一个工业级 Linux 内核内存优化引擎，通过 Hook 内存管理子系统，应用智能优化策略，提升数据库、大数据、容器等场景的内存访问问题的能力。
+SmartMemEngine 是一个工业级 Linux 内核内存优化引擎，基于 Linux 6.12 内核模块实现，通过 kprobe/kretprobe Hook 内存管理子系统，应用智能优化策略，实现内存热点的实时识别、瓶颈分析和自动调优。
 
-本项目旨在解决以下场景的内存问题：
-- **数据库场景**：减少跨NUMA节点内存访问，提升查询性能
-- **大数据场景**：优化内存分配模式，降低延迟和碎片
-- **容器场景**：改善容器内存隔离和资源限制效果
-
-## 功能特性
-
-- **Buddy 分配优化**：NUMA 感知分配，减少跨节点访问
-- **SLUB 分配优化**：自适应缓存大小，提升小对象分配效率
-- **页面管理优化**：多代 LRU 策略，改善页面置换
-- **实时监控**：eBPF/tracepoint 零开销监控
-- **智能分析**：热点识别、瓶颈分析、根因定位
-- **自动调优**：根据负载动态调整优化策略
-- **灵活接口**：procfs/debugfs/netlink 多种接口
+**核心能力**：
+- **实时监控**：通过 kprobe/tracepoint 零侵入采集 Buddy/SLUB/NUMA 内存事件
+- **智能分析**：热点识别（调用栈聚合+评分衰减）、瓶颈检测（5类）、根因分析（5类）
+- **自动调优**：内存整理(compaction)、水位线调整、页缓存/SLAB回收
+- **趋势预测**：基于线性回归的 OOM 风险预测和内存耗尽时间估算
+- **策略引擎**：NUMA感知Buddy分配、自适应SLUB缓存、多代LRU、NUMA负载均衡
 
 ## 系统要求
 
-- **内核版本**：Linux 6.x
+- **内核版本**：Linux 6.12+
+- **架构**：x86_64
 - **编译工具**：gcc, make
-- **内核头文件**：`/lib/modules/$(uname -r)/build`
-- **可选工具**：clang/llvm（用于 eBPF 编译）
+- **内核源码**：`/lib/modules/$(uname -r)/build`（需包含有效 Module.symvers）
 
 ## 目录结构
 
 ```
 smartmem_engine/
-├── README.md              # 本文件
-├── Makefile               # 编译文件
-├── smartmem.h             # 核心头文件
-├── smartmem.c             # 模块主入口
-├── core/                  # 核心模块（引擎、配置、统计）
-├── hooks/                 # Hook层（buddy、slub、vma、lru、numa）
-├── strategy/              # 策略引擎和内置策略
-├── monitor/               # 监控系统（eBPF、tracepoint）
-├── analysis/              # 分析引擎（热点、瓶颈、根因）
-├── optimization/          # 优化引擎（自动调优、预测）
-├── interface/             # 接口层（procfs、debugfs）
-└── tools/                 # 用户空间工具（memctl、memstat、memview）
+├── src/
+│   ├── main.c                 # 模块入口
+│   ├── Makefile               # 内核模块编译
+│   ├── core/                  # 引擎核心（引擎、配置、统计）
+│   ├── hooks/                 # Hook层（buddy、slub、vma、lru、numa）
+│   ├── strategy/              # 策略引擎和4个内置策略
+│   ├── monitor/               # 监控系统（eBPF框架、tracepoint）
+│   ├── analysis/              # 分析引擎（热点、瓶颈、根因）
+│   ├── optimization/          # 优化引擎（自动调优、预测模型）
+│   ├── interface/             # 接口层（procfs、debugfs）
+│   └── tools/                 # 用户空间工具
+│       ├── memctl.c           # 配置管理
+│       ├── memstat.c          # 统计查看
+│       ├── memview.c          # 可视化展示
+│       ├── test_smartmem.sh   # 集成测试
+│       ├── test_perf.sh       # 性能测试
+│       └── Makefile
+└── docs/                      # 设计文档
 ```
 
-## 构建编译
+## 构建与安装
 
-### 编译模块
+### 编译内核模块
 
 ```bash
-cd smartmem_engine
+cd src
 make
 ```
 
-编译成功后会生成 `smartmem.ko` 内核模块文件。
-
-### 清理编译文件
+### 编译用户空间工具
 
 ```bash
-make clean
+cd src/tools
+make
 ```
 
-### 安装模块到系统
+### 安装工具到系统
 
 ```bash
-sudo make install
+cd src/tools
+make install
 ```
 
-这会将模块安装到 `/lib/modules/$(uname -r)/extra/` 目录。
+## 使用指南
 
-## 安装与使用
-
-### 加载模块
+### 加载/卸载模块
 
 ```bash
-sudo insmod smartmem.ko
+# 加载
+insmod smartmem.ko
+
+# 卸载
+rmmod smartmem
+
+# 查看加载日志
+dmesg | grep smartmem
 ```
-
-查看模块加载状态：
-
-```bash
-dmesg | tail
-lsmod | grep smartmem
-```
-
-### 验证模块运行
-
-查看 procfs 接口：
-
-```bash
-# 查看模块配置
-cat /proc/smartmem/config
-
-# 查看内存分配统计
-cat /proc/smartmem/stats
-
-# 查看当前策略
-cat /proc/smartmem/policies
-```
-
-### 配置模块
-
-启用 NUMA 感知策略：
-
-```bash
-echo "numa_aware_enabled=1" | sudo tee /proc/smartmem/config
-```
-
-启用自动调优：
-
-```bash
-echo "auto_tune_enabled=1" | sudo tee /proc/smartmem/config
-```
-
-### 卸载模块
-
-```bash
-sudo rmmod smartmem
-```
-
-## 接口说明
 
 ### procfs 接口
 
-| 接口 | 功能 | 操作 |
+| 接口 | 功能 | 权限 |
 |------|------|------|
-| `/proc/smartmem/config` | 配置信息 | 读取/写入 |
+| `/proc/smartmem/config` | 配置信息 | 读写 |
 | `/proc/smartmem/stats` | 统计信息 | 只读 |
-| `/proc/smartmem/hotspots` | 热点调用栈 | 只读 |
-| `/proc/smartmem/policies` | 策略信息 | 只读 |
-| `/proc/smartmem/control` | 控制接口 | 读取/写入 |
+| `/proc/smartmem/policies` | 策略状态 | 只读 |
+| `/proc/smartmem/hotspots` | Top-N 分配热点 | 只读 |
+| `/proc/smartmem/bottlenecks` | 瓶颈分析 | 只读 |
+| `/proc/smartmem/rootcauses` | 根因分析 | 只读 |
+| `/proc/smartmem/autotune` | 自动调优状态 | 读写 |
+| `/proc/smartmem/prediction` | 内存预测 | 只读 |
+| `/proc/smartmem/control` | 控制命令 | 读写 |
+
+### control 命令
+
+```bash
+# 启用/禁用功能
+echo 'enable auto_tune_enabled' > /proc/smartmem/control
+echo 'disable trace_enabled' > /proc/smartmem/control
+
+# 重置
+echo 'reset stats' > /proc/smartmem/control
+echo 'reset hotspots' > /proc/smartmem/control
+echo 'reset prediction' > /proc/smartmem/control
+
+# 手动调优
+echo 'tune compact' > /proc/smartmem/control
+echo 'tune slab' > /proc/smartmem/control
+```
+
+### 自动调优写入
+
+```bash
+echo 'compact' > /proc/smartmem/autotune
+echo 'watermark' > /proc/smartmem/autotune
+echo 'numa' > /proc/smartmem/autotune
+echo 'slab' > /proc/smartmem/autotune
+```
 
 ### debugfs 接口
 
 | 接口 | 功能 |
 |------|------|
-| `/sys/kernel/debug/smartmem/dump` | 状态 dump |
-| `/sys/kernel/debug/smartmem/internal` | 内部数据导出 |
+| `/sys/kernel/debug/smartmem/status` | 完整状态 dump |
+| `/sys/kernel/debug/smartmem/hotspots` | 原始热点数据（含未解析栈） |
+| `/sys/kernel/debug/smartmem/tune_history` | 调优历史详情 |
 
 ### 用户空间工具
 
-- **memctl**：配置管理工具
-  ```bash
-  sudo ./tools/memctl set numa_aware_enabled 1
-  sudo ./tools/memctl get numa_aware_enabled
-  ```
+**memctl** - 配置管理：
+```bash
+memctl config                        # 查看所有配置
+memctl config get hook_buddy_enabled # 获取单个配置
+memctl config set hook_buddy_enabled=true  # 设置配置
+memctl enable auto_tune_enabled      # 启用功能
+memctl disable auto_tune_enabled     # 禁用功能
+memctl reset stats                   # 重置统计
+memctl tune compact                  # 手动触发内存整理
+```
 
-- **memstat**：统计查看工具
-  ```bash
-  sudo ./tools/memstat --buddy
-  sudo ./tools/memstat --slub
-  ```
+**memstat** - 统计查看：
+```bash
+memstat stats        # 分配统计
+memstat policies     # 策略状态
+memstat hotspots     # 热点调用栈
+memstat bottlenecks  # 瓶颈分析
+memstat rootcauses   # 根因分析
+memstat autotune     # 调优历史
+memstat prediction   # 内存预测
+memstat summary      # 一行摘要
+memstat all          # 全部信息
+```
 
-- **memview**：可视化展示工具
-  ```bash
-  sudo ./tools/memview --hotspots
-  ```
+**memview** - 可视化：
+```bash
+memview overview    # 彩色概览（内存条、NUMA局部性）
+memview bar         # 内存分段条形图
+memview top         # 实时监控（2秒刷新）
+memview watch 5     # watch 模式（带增量，5秒刷新）
+```
+
+## 自动化测试
+
+```bash
+# 集成测试（约30秒）
+cd src/tools
+bash test_smartmem.sh
+
+# 性能影响测试
+bash test_perf.sh
+```
+
+## 常见问题
+
+### _printk symbol version mismatch
+
+如果 `insmod` 报错 `disagrees about version of symbol _printk`，说明 `Module.symvers` 中 CRC 值为零。运行修复脚本：
+
+```bash
+cd src/tools
+bash fix_symvers.sh
+cd ..
+make clean && make
+```
 
 ## 许可证
 

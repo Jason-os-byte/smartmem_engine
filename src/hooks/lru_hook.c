@@ -23,17 +23,14 @@ static struct kprobe kp_page_referenced;
 static int mark_page_accessed_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	struct page *page = (struct page *)regs->di;
+    struct page *page = (struct page *)regs->di;
 #else
-	return 0;
+    return 0;
 #endif
 
-	/* 更新 LRU 访问统计 */
-	/* TODO: 实现 LRU 页面访问跟踪 */
+    pr_debug("smartmem: page accessed, pfn=%lu\n", page_to_pfn(page));
 
-	pr_debug("smartmem: page accessed, pfn=%lu\n", page_to_pfn(page));
-
-	return 0;
+    return 0;
 }
 
 /**
@@ -42,19 +39,14 @@ static int mark_page_accessed_entry(struct kprobe *p, struct pt_regs *regs)
 static int page_referenced_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	struct folio *folio = (struct folio *)regs->di;
-	int is_locked = (int)regs->si;
+    struct folio *folio = (struct folio *)regs->di;
 #else
-	return 0;
+    return 0;
 #endif
 
-	/* 更新页面引用统计 */
-	/* TODO: 实现页面引用跟踪 */
+    pr_debug("smartmem: folio referenced, pfn=%lu\n", folio_pfn(folio));
 
-	pr_debug("smartmem: folio referenced, pfn=%lu, locked=%d\n",
-		 folio_pfn(folio), is_locked);
-
-	return 0;
+    return 0;
 }
 
 /**

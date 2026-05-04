@@ -175,6 +175,29 @@ static void analyze_numa_misplace(struct bottleneck_entry *bottlenecks,
 }
 
 /**
+ * 分析 SLAB 膨胀问题
+ */
+static void analyze_slab_bloat(struct bottleneck_entry *bottlenecks,
+                                int bn_cnt)
+{
+    int i;
+    bool has_low_hit = false;
+
+    for (i = 0; i < bn_cnt; i++) {
+        if (bottlenecks[i].type == BOTTLENECK_LOW_SLAB_HIT)
+            has_low_hit = true;
+    }
+
+    if (has_low_hit) {
+        add_root_cause(ROOT_CAUSE_SLAB_BLOAT,
+                       BOTTLENECK_LOW_SLAB_HIT,
+                       65,
+                       "SLAB cache bloat with low per-CPU hit rate",
+                       "Tune SLUB min_partial or trigger slab reclaim");
+    }
+}
+
+/**
  * 更新根因分析
  */
 int root_cause_update(void)
@@ -201,6 +224,7 @@ int root_cause_update(void)
     analyze_direct_reclaim(bottlenecks, bn_cnt);
     analyze_compact_fail(bottlenecks, bn_cnt);
     analyze_numa_misplace(bottlenecks, bn_cnt);
+    analyze_slab_bloat(bottlenecks, bn_cnt);
 
     return 0;
 }

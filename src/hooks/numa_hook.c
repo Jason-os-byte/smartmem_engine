@@ -2,6 +2,7 @@
 
 #include "numa_hook.h"
 #include "stats.h"
+#include "strategy.h"
 #include <linux/kprobes.h>
 #include <linux/migrate.h>
 
@@ -23,21 +24,18 @@ static struct kprobe kp_migrate_misplaced_page;
 static int migrate_pages_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	// struct list_head *from = (struct list_head *)regs->di;
-	unsigned long npages = (unsigned long)regs->si;
-	// struct list_head *to = (struct list_head *)regs->dx;
-	// struct list_head *moved = (struct list_head *)regs->r10;
-	int mode = (int)regs->r8;
+    unsigned long npages = (unsigned long)regs->si;
+    int mode = (int)regs->r8;
 #else
-	return 0;
+    return 0;
 #endif
 
-	/* 更新 NUMA 迁移统计 */
-	/* TODO: 实现 NUMA 页面迁移跟踪 */
+    /* 通知 NUMA 策略发生页面迁移 */
+    // numa_pages_migrating(npages, mode);
 
-	pr_debug("smartmem: migrate_pages npages=%lu, mode=%d\n", npages, mode);
+    pr_debug("smartmem: migrate_pages npages=%lu, mode=%d\n", npages, mode);
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -46,17 +44,17 @@ static int migrate_pages_entry(struct kprobe *p, struct pt_regs *regs)
 static int migrate_misplaced_page_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	struct folio *folio = (struct folio *)regs->di;
+    struct folio *folio = (struct folio *)regs->di;
 #else
-	return 0;
+    return 0;
 #endif
 
-	/* 更新 NUMA 错位页面迁移统计 */
-	/* TODO: 实现错位页面跟踪 */
+    /* 通知 NUMA 策略发现错位页面 */
+    // numa_misplaced_page(folio);
 
-	pr_debug("smartmem: migrate_misplaced_folio pfn=%lu\n", folio_pfn(folio));
+    pr_debug("smartmem: migrate_misplaced_folio pfn=%lu\n", folio_pfn(folio));
 
-	return 0;
+    return 0;
 }
 
 /**
@@ -108,9 +106,25 @@ void numa_hook_exit(void)
  */
 int numa_hook_enable(void)
 {
-	pr_info("smartmem: numa hook enabled\n");
-	/* TODO: 启用 kprobe */
-	return 0;
+    int ret;
+
+    pr_info("smartmem: numa hook enabling...\n");
+
+    ret = enable_kprobe(&kp_migrate_pages);
+    if (ret) {
+        pr_warn("smartmem: failed to enable migrate_pages kprobe: %d\n", ret);
+        return ret;
+    }
+
+    ret = enable_kprobe(&kp_migrate_misplaced_page);
+    if (ret) {
+        pr_warn("smartmem: failed to enable migrate_misplaced_page kprobe: %d\n", ret);
+        disable_kprobe(&kp_migrate_pages);
+        return ret;
+    }
+
+    pr_info("smartmem: numa hook enabled\n");
+    return 0;
 }
 
 /**
@@ -118,7 +132,11 @@ int numa_hook_enable(void)
  */
 int numa_hook_disable(void)
 {
-	pr_info("smartmem: numa hook disabled\n");
-	/* TODO: 禁用 kprobe */
-	return 0;
+    pr_info("smartmem: numa hook disabling...\n");
+
+    disable_kprobe(&kp_migrate_pages);
+    disable_kprobe(&kp_migrate_misplaced_page);
+
+    pr_info("smartmem: numa hook disabled\n");
+    return 0;
 }

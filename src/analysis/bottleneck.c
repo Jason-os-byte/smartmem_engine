@@ -3,6 +3,7 @@
 #include "bottleneck.h"
 #include "hotspot.h"
 #include "stats.h"
+#include "adaptive_slub.h"
 #include <linux/slab.h>
 #include <linux/mmzone.h>
 #include <linux/cpumask.h>
@@ -233,6 +234,37 @@ static void detect_oom_risk(void)
 }
 
 /**
+ * 检测 SLAB 低命中率瓶颈
+ * 比较 SLUB per-CPU 命中率和 miss 率
+ */
+static void detect_low_slab_hit(void)
+{
+    u64 alloc, free, hit, miss, tune;
+
+    adaptive_slub_get_stats(&alloc, &free, &hit, &miss, &tune);
+
+    if (alloc == 0)
+        return;
+
+    /* 命中率 = hit / (hit + miss) * 100 */
+    {
+        u64 total = hit + miss;
+        u64 hit_pct = 100;
+
+        if (total > 0)
+            hit_pct = (hit * 100) / total;
+
+        if (hit_pct < bn_thresholds.slab_hit_low_percent && alloc > 1000) {
+            add_bottleneck(BOTTLENECK_LOW_SLAB_HIT,
+                           hit_pct < 30 ? SEVERITY_HIGH : SEVERITY_MEDIUM,
+                           hit_pct, bn_thresholds.slab_hit_low_percent,
+                           "Low SLAB hit rate: %llu%% (alloc=%llu, hit=%llu, miss=%llu)",
+                           hit_pct, alloc, hit, miss);
+        }
+    }
+}
+
+/**
  * 更新瓶颈分析 - 执行所有检测
  */
 int bottleneck_update(void)
@@ -252,6 +284,7 @@ int bottleneck_update(void)
     detect_fragmentation();
     detect_numa_imbalance();
     detect_oom_risk();
+    detect_low_slab_hit();
 
     return 0;
 }

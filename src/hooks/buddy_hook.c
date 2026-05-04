@@ -3,6 +3,7 @@
 #include "buddy_hook.h"
 #include "stats.h"
 #include "hotspot.h"
+#include "strategy.h"
 #include <linux/stacktrace.h>
 
 #define STACK_DEPTH 16
@@ -117,8 +118,12 @@ static int free_pages_entry(struct kprobe *p, struct pt_regs *regs)
     return 0;
 #endif
 
-    /* TODO: 调用策略引擎 */
-    /* buddy_pre_free(page, order); */
+    /* 调用策略引擎 */
+    {
+        struct buddy_strategy *bs = buddy_strategy_get_current();
+        if (bs && bs->enabled && bs->ops.pre_free)
+            bs->ops.pre_free(page, order);
+    }
 
     /* 更新统计 */
     smartmem_stats_buddy_free_inc();
@@ -184,24 +189,37 @@ void buddy_hook_exit(void)
     pr_info("smartmem: buddy hook exited\n");
 }
 
-/**
- * 启用 Buddy Hook
- */
 int buddy_hook_enable(void)
 {
+    int ret;
+
+    pr_info("smartmem: buddy hook enabling...\n");
+
+    ret = enable_kretprobe(&krp_alloc_pages);
+    if (ret) {
+        pr_warn("smartmem: failed to enable alloc_pages kretprobe: %d\n", ret);
+        return ret;
+    }
+
+    ret = enable_kprobe(&kp_free_pages);
+    if (ret) {
+        pr_warn("smartmem: failed to enable free_pages kprobe: %d\n", ret);
+        disable_kretprobe(&krp_alloc_pages);
+        return ret;
+    }
+
     pr_info("smartmem: buddy hook enabled\n");
-
-    /* TODO: 启用 kprobe/kretprobe */
-
     return 0;
 }
 
-/**
- * 禁用 Buddy Hook
- */
 int buddy_hook_disable(void)
 {
+    pr_info("smartmem: buddy hook disabling...\n");
+
+    disable_kretprobe(&krp_alloc_pages);
+    disable_kprobe(&kp_free_pages);
+
     pr_info("smartmem: buddy hook disabled\n");
-    /* TODO: 禁用 kprobe/kretprobe */
     return 0;
 }
+

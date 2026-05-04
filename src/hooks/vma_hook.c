@@ -30,9 +30,6 @@ static int mmap_entry(struct kprobe *p, struct pt_regs *regs)
     return 0;
 #endif
 
-    /* TODO: 调用策略引擎 */
-	/* vma_pre_mmap(addr, len, prot, flags); */
-
 	pr_debug("smartmem: mmap addr=%lx, len=%lx, prot=%lx\n", addr, len, prot);
 
 	return 0;
@@ -48,9 +45,6 @@ static int munmap_entry(struct kprobe *p, struct pt_regs *regs)
 	return 0;
 #endif
 
-	/* TODO: 调用策略引擎 */
-	/* vma_pre_munmap(addr, len); */
-
 	pr_debug("smartmem: munmap addr=%lx, len=%zx\n", addr, len);
 
 	return 0;
@@ -60,23 +54,19 @@ static int munmap_entry(struct kprobe *p, struct pt_regs *regs)
 static int mremap_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	/* __x64_sys_mremap: regs->di 是 pt_regs 指针，参数从中取 */
-	struct pt_regs *real_regs = (struct pt_regs *)regs->di;
-	unsigned long old_addr = real_regs->di;
-	// unsigned long old_len = real_regs->si;
-	// unsigned long new_len = real_regs->dx;
-	// unsigned long flags = real_regs->r10;
-	unsigned long new_addr = real_regs->r8;
+    struct pt_regs *real_regs = (struct pt_regs *)regs->di;
+    unsigned long old_addr = real_regs->di;
+    // unsigned long old_len = real_regs->si;
+    // unsigned long new_len = real_regs->dx;
+    // unsigned long flags = real_regs->r10;
+    unsigned long new_addr = real_regs->r8;
 #else
-	return 0;
+    return 0;
 #endif
 
-	/* TODO: 调用策略引擎 */
-	/* vma_pre_mremap(old_addr, old_len, new_len, flags, new_addr); */
+    pr_debug("smartmem: mremap old=%lx, new=%lx\n", old_addr, new_addr);
 
-	pr_debug("smartmem: mremap old=%lx, new=%lx\n", old_addr, new_addr);
-
-	return 0;
+    return 0;
 }
 
 /**

@@ -143,20 +143,42 @@ void slub_hook_exit(void)
  */
 int slub_hook_enable(void)
 {
+    int ret;
+
+    pr_info("smartmem: slub hook enabling...\n");
+
+    ret = enable_kretprobe(&krp_kmalloc);
+    if (ret) {
+        pr_warn("smartmem: failed to enable kmalloc kretprobe: %d\n", ret);
+        return ret;
+    }
+
+    ret = enable_kprobe(&kp_kfree);
+    if (ret) {
+        pr_warn("smartmem: failed to enable kfree kprobe: %d\n", ret);
+        disable_kretprobe(&krp_kmalloc);
+        return ret;
+    }
+
     pr_info("smartmem: slub hook enabled\n");
-    /* TODO: 启用 kprobe/kretprobe */
     return 0;
 }
+
 
 /**
  * 禁用 SLUB Hook
  */
 int slub_hook_disable(void)
 {
+    pr_info("smartmem: slub hook disabling...\n");
+
+    disable_kretprobe(&krp_kmalloc);
+    disable_kprobe(&kp_kfree);
+
     pr_info("smartmem: slub hook disabled\n");
-    /* TODO: 禁用 kprobe/kretprobe */
     return 0;
 }
+
 
 
 

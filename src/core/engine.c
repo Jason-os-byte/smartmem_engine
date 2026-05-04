@@ -1,6 +1,9 @@
-/* 引擎核心模块实现 */
-
+/* 引擎核心实现 */
 #include "engine.h"
+#include "config.h"
+#include "stats.h"
+
+static bool engine_initialized = false;
 
 /**
  * 引擎初始化
@@ -9,7 +12,7 @@ int smartmem_engine_init(void)
 {
     pr_info("smartmem: engine initializing...\n");
 
-    /* TODO: 初始化配置和统计模块 */
+    engine_initialized = true;
 
     pr_info("smartmem: engine initialized\n");
     return 0;
@@ -22,22 +25,24 @@ void smartmem_engine_exit(void)
 {
     pr_info("smartmem: engine exiting...\n");
 
-    /* TODO: 清理配置和统计模块 */
+    engine_initialized = false;
 
     pr_info("smartmem: engine exited\n");
 }
 
 /**
- * 启用引擎
+ * 引擎启用
  */
 int smartmem_engine_enable(void)
 {
+    if (!engine_initialized)
+        return -ENODEV;
     pr_info("smartmem: engine enabled\n");
     return 0;
 }
 
 /**
- * 禁用引擎
+ * 引擎禁用
  */
 int smartmem_engine_disable(void)
 {

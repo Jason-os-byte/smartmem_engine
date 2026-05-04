@@ -151,8 +151,19 @@ int trace_monitor_start(void)
 		if (!trace_probes[i].tp)
 			continue;
 
+		if (trace_probes[i].registered) {
+			registered++;
+			continue;
+		}
+
 		ret = tracepoint_probe_register(trace_probes[i].tp, trace_probes[i].probe, NULL);
-		if (ret) {
+		if (ret == -EEXIST) {
+			/* 探针已存在（可能是上次卸载后 RCU 宽限期未过） */
+			trace_probes[i].registered = true;
+			registered++;
+			pr_info("smartmem: trace probe '%s' already registered\n",
+				trace_probes[i].name);
+		} else if (ret) {
 			pr_warn("smartmem: failed to register trace probe '%s': %d\n",
 				trace_probes[i].name, ret);
 		} else {
@@ -187,6 +198,9 @@ int trace_monitor_stop(void)
 			trace_probes[i].registered = false;
 		}
 	}
+
+	/* 等待 RCU 宽限期结束，确保探针完全移除 */
+	tracepoint_synchronize_unregister();
 
 	trace_running = false;
 
