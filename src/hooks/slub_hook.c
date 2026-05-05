@@ -1,6 +1,7 @@
 /* SLUB 分配 Hook 实现 */
 #include "slub_hook.h"
 #include "stats.h"
+#include "strategy.h"
 #include <linux/kprobes.h>
 #include <linux/slab.h>
 #include <linux/ktime.h>
@@ -26,7 +27,7 @@ static int kmalloc_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
     size_t size = (size_t)regs->di; // 第一个参数
-#else 
+#else
     return 0;
 #endif
 
@@ -44,8 +45,6 @@ static int kmalloc_entry(struct kprobe *p, struct pt_regs *regs)
  */
 static int kmalloc_return(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	//void *ptr = (void *)regs_return_value(regs);
-
 	struct slub_alloc_args *args = this_cpu_ptr(&slub_alloc_args);
 	if (!args->active)
 		return 0;
@@ -54,7 +53,14 @@ static int kmalloc_return(struct kretprobe_instance *ri, struct pt_regs *regs)
 	/* 更新统计 */
 	smartmem_stats_slub_alloc_inc();
 
-	/* TODO: 调用策略引擎 */
+	/* 调用策略引擎 */
+	{
+		struct slub_strategy *ss = slub_strategy_get_current();
+		if (ss && ss->enabled && ss->ops.post_alloc) {
+			void *ptr = (void *)regs_return_value(regs);
+			ss->ops.post_alloc(ptr, args->size);
+		}
+	}
 
 	return 0;
 }
@@ -66,12 +72,17 @@ static int kmalloc_return(struct kretprobe_instance *ri, struct pt_regs *regs)
 static int kfree_entry(struct kprobe *p, struct pt_regs *regs)
 {
 #if defined(CONFIG_X86_64)
-	//void *ptr = (void *)regs->di;  /* 第一个参数：ptr */
+	void *ptr = (void *)regs->di;
 #else
 	return 0;
 #endif
 
-	/* TODO: 调用策略引擎 */
+	/* 调用策略引擎 */
+	{
+		struct slub_strategy *ss = slub_strategy_get_current();
+		if (ss && ss->enabled && ss->ops.pre_free)
+			ss->ops.pre_free(ptr);
+	}
 
 	/* 更新统计 */
 	smartmem_stats_slub_free_inc();
@@ -87,7 +98,7 @@ int slub_hook_init(void)
 {
     int ret;
 
-	pr_info("smartmem: slub hook initializing...\n");
+    pr_info("smartmem: slub hook initializing...\n");
 
 	/* 初始化 kmalloc kprobe */
 	memset(&kp_kmalloc, 0, sizeof(kp_kmalloc));
@@ -120,8 +131,8 @@ int slub_hook_init(void)
 		/* 非致命错误，继续 */
 	}
 
-	pr_info("smartmem: slub hook initialized\n");
-	return 0;
+    pr_info("smartmem: slub hook initialized\n");
+    return 0;
 }
 
 /**
@@ -178,9 +189,3 @@ int slub_hook_disable(void)
     pr_info("smartmem: slub hook disabled\n");
     return 0;
 }
-
-
-
-
-
-
