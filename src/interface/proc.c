@@ -681,7 +681,10 @@ static ssize_t control_write(struct file *file, const char __user *buffer,
         /* 重置: reset stats, reset hotspots, reset autotune */
         if (strcmp(arg, "stats") == 0) {
             smartmem_stats_reset();
-            pr_info("smartmem: control: stats reset\n");
+            trace_monitor_reset_stats();
+            auto_tune_reset_stats();
+            predictive_reset();
+            pr_info("smartmem: control: all stats reset\n");
         } else if (strcmp(arg, "hotspots") == 0) {
             hotspot_reset();
             pr_info("smartmem: control: hotspots reset\n");

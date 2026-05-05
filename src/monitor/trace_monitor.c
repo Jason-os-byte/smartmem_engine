@@ -225,3 +225,15 @@ u64 trace_monitor_get_free_count(void)
 {
 	return atomic64_read(&trace_free_count);
 }
+
+/**
+ * 重置 tracepoint 统计
+ */
+void trace_monitor_reset_stats(void)
+{
+	atomic64_set(&trace_event_count, 0);
+	atomic64_set(&trace_alloc_count, 0);
+	atomic64_set(&trace_free_count, 0);
+
+	pr_info("smartmem: trace monitor stats reset\n");
+}

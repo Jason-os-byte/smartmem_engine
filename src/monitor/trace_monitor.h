@@ -14,4 +14,6 @@ u64 trace_monitor_get_event_count(void);
 u64 trace_monitor_get_alloc_count(void);
 u64 trace_monitor_get_free_count(void);
 
+void trace_monitor_reset_stats(void);
+
 #endif /* _SMARTMEM_TRACE_MONITOR_H */

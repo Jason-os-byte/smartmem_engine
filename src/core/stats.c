@@ -137,13 +137,28 @@ u64 smartmem_stats_get_numa_remote(void)
 /* 重置所有统计 */
 void smartmem_stats_reset(void)
 {
+    int cpu;
+
+    /* 先聚合 per-CPU 到全局，避免残留值在下次聚合时累加回来 */
+    smartmem_stats_aggregate();
+
     atomic64_set(&g_stats.buddy_alloc_count, 0);
     atomic64_set(&g_stats.buddy_free_count, 0);
     atomic64_set(&g_stats.slub_alloc_count, 0);
     atomic64_set(&g_stats.slub_free_count, 0);
     atomic64_set(&g_stats.numa_local_alloc, 0);
     atomic64_set(&g_stats.numa_remote_alloc, 0);
-    
-    pr_info("smartmem: stats reset\n");
+
+    /* 清零 per-CPU 统计，防止重置后旧值累加回来 */
+    for_each_possible_cpu(cpu) {
+        struct smartmem_cpu_stats *cpu_stats;
+        cpu_stats = per_cpu_ptr(&sm_cpu_stats, cpu);
+        cpu_stats->buddy_alloc_count = 0;
+        cpu_stats->buddy_free_count = 0;
+        cpu_stats->slub_alloc_count = 0;
+        cpu_stats->slub_free_count = 0;
+    }
+
+    pr_info("smartmem: stats reset (including per-CPU)\n");
 }
 
