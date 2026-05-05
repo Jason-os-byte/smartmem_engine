@@ -1,0 +1,83 @@
+╔══════════════════════════════════════════╗
+║  SmartMemEngine 压力测试 - 内存压力场景   ║
+╚══════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Buddy 分配器压力
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+stress: info: [16653] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16654] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16652] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16651] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16653] successful run completed in 20s
+stress: info: [16654] successful run completed in 20s
+stress: info: [16652] successful run completed in 20s
+stress: info: [16651] successful run completed in 20s
+  [0;32mPASS[0m [1]: Buddy 压力测试完成（模块存活）
+  [0;32mPASS[0m [2]: dmesg 无内核异常
+  [0;32mPASS[0m [3]: 压力后 stats 可读
+  [0;32mPASS[0m [4]: alloc_count = 309952
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. SLUB 分配器压力
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+stress: info: [16772] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [16773] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [16774] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [16775] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [16772] successful run completed in 20s
+stress: info: [16774] successful run completed in 20s
+stress: info: [16773] successful run completed in 20s
+stress: info: [16775] successful run completed in 20s
+  [0;32mPASS[0m [5]: SLUB 压力测试完成
+  [0;32mPASS[0m [6]: dmesg 无内核异常
+  [0;32mPASS[0m [7]: SLUB 压力后 stats 可读
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. 内存碎片化压力
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+stress: info: [16870] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16870] successful run completed in 5s
+stress: info: [16910] dispatching hogs: 0 cpu, 0 io, 4 vm, 0 hdd
+stress: info: [16910] successful run completed in 5s
+stress: info: [16954] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16954] successful run completed in 5s
+stress: info: [16987] dispatching hogs: 0 cpu, 0 io, 4 vm, 0 hdd
+stress: info: [16987] successful run completed in 5s
+stress: info: [17044] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [17044] successful run completed in 5s
+stress: info: [17071] dispatching hogs: 0 cpu, 0 io, 4 vm, 0 hdd
+stress: info: [17071] successful run completed in 5s
+  [0;32mPASS[0m [8]: 碎片化压力: free 5837808KB -> 5915180KB
+  [0;32mPASS[0m [9]: compact 后: free 5915180KB -> 5954012KB
+  [0;32mPASS[0m [10]: 碎片化压力无内核异常
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. OOM 临近压力
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+尝试消耗 7586MB 内存...
+stress: info: [17140] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [17140] successful run completed in 16s
+  [0;32mPASS[0m [11]: OOM 临近压力测试完成（模块存活）
+  [0;32mPASS[0m [12]: OOM 压力无内核异常
+  [0;32mPASS[0m [13]: OOM 压力后 stats 可读
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. NUMA 跨节点压力
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [14]: 单 NUMA 节点系统，跳过跨节点测试
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  6. 并发 procfs 读取压力
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [15]: 并发 procfs 访问完成
+  [0;32mPASS[0m [16]: 并发访问无内核异常
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  测试结果汇总
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  总计: 16
+  [0;32m通过: 16[0m
+  [0;31m失败: 0[0m
+
+[0;32m全部通过![0m

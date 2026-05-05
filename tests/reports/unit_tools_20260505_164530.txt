@@ -1,0 +1,68 @@
+╔══════════════════════════════════════════╗
+║  SmartMemEngine 单元测试 - 用户空间工具   ║
+╚══════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. memctl 配置管理工具
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [1]: memctl 无参数显示帮助
+  [0;32mPASS[0m [2]: memctl help 显示帮助
+  [0;32mPASS[0m [3]: memctl config 显示配置
+  [0;32mPASS[0m [4]: memctl config get 获取单项
+  [0;32mPASS[0m [5]: memctl config set 设置配置
+  [0;32mPASS[0m [6]: memctl enable trace_enabled
+  [0;32mPASS[0m [7]: memctl disable trace_enabled
+  [0;32mPASS[0m [8]: memctl enable auto_tune_enabled
+  [0;32mPASS[0m [9]: memctl disable auto_tune_enabled
+  [0;32mPASS[0m [10]: memctl reset stats
+  [0;32mPASS[0m [11]: memctl reset hotspots
+  [0;32mPASS[0m [12]: memctl reset prediction
+  [0;32mPASS[0m [13]: memctl reset autotune
+  [0;32mPASS[0m [14]: memctl tune compact
+  [0;32mPASS[0m [15]: memctl tune slab
+  [0;32mPASS[0m [16]: memctl 非法命令报错
+  [0;32mPASS[0m [17]: memctl 模块未加载时报错
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. memstat 统计查看工具
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [18]: memstat 无参数显示帮助
+  [0;32mPASS[0m [19]: memstat stats
+  [0;32mPASS[0m [20]: memstat policies
+  [0;32mPASS[0m [21]: memstat hotspots
+  [0;32mPASS[0m [22]: memstat bottlenecks
+  [0;32mPASS[0m [23]: memstat rootcauses
+  [0;32mPASS[0m [24]: memstat autotune
+  [0;32mPASS[0m [25]: memstat prediction
+  [0;32mPASS[0m [26]: memstat summary
+  [0;32mPASS[0m [27]: memstat all
+  [0;32mPASS[0m [28]: memstat summary 包含 buddy_alloc
+  [0;32mPASS[0m [29]: memstat summary 包含 free
+  [0;32mPASS[0m [30]: memstat summary 包含 numa_locality
+  [0;32mPASS[0m [31]: memstat all 包含 Buddy 段
+  [0;32mPASS[0m [32]: memstat all 包含 Prediction 段
+  [0;32mPASS[0m [33]: memstat 非法命令报错
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. memview 可视化工具
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [34]: memview 无参数显示帮助
+  [0;32mPASS[0m [35]: memview overview
+  [0;32mPASS[0m [36]: overview 包含 Memory Usage
+  [0;32mPASS[0m [37]: overview 包含 NUMA Locality
+  [0;32mPASS[0m [38]: memview bar
+  [0;32mPASS[0m [39]: bar 包含 Memory Layout
+  [0;31mFAIL[0m [1]: bar 包含图例
+  [0;31mFAIL[0m [2]: memview top 运行正常
+  [0;31mFAIL[0m [3]: memview watch 1 运行正常
+  [0;32mPASS[0m [40]: memview 非法命令报错
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  测试结果汇总
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  总计: 43
+  [0;32m通过: 40[0m
+  [0;31m失败: 3[0m
+  [0;33m跳过: 0[0m
+
+[0;31m存在失败用例![0m

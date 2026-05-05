@@ -1,0 +1,73 @@
+╔══════════════════════════════════════════╗
+║  SmartMemEngine 集成测试 - 生命周期       ║
+╚══════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. 基本加载/卸载
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [1]: insmod 成功
+  [0;32mPASS[0m [2]: lsmod 可见
+  [0;32mPASS[0m [3]: /proc/smartmem 目录存在
+  [0;32mPASS[0m [4]: dmesg 无错误/警告
+  [0;32mPASS[0m [5]: rmmod 成功
+  [0;32mPASS[0m [6]: 卸载后 lsmod 不可见
+  [0;32mPASS[0m [7]: 卸载后 /proc/smartmem 已删除
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. 功能启用状态下卸载
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [8]: 加载模块
+  [0;32mPASS[0m [9]: 启用 trace + auto_tune
+  [0;32mPASS[0m [10]: 功能启用状态下 rmmod 成功
+  [0;32mPASS[0m [11]: 卸载干净
+  [0;32mPASS[0m [12]: dmesg 无 oops/panic
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. 重复加载/卸载（5次）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [13]: 第1次加载/读取/卸载正常
+  [0;32mPASS[0m [14]: 第2次加载/读取/卸载正常
+  [0;32mPASS[0m [15]: 第3次加载/读取/卸载正常
+  [0;32mPASS[0m [16]: 第4次加载/读取/卸载正常
+  [0;32mPASS[0m [17]: 第5次加载/读取/卸载正常
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. 初始化序列验证
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [18]: 模块加载
+  [0;31mFAIL[0m [1]: 初始化: config initialized
+  [0;31mFAIL[0m [2]: 初始化: stats initialized
+  [0;32mPASS[0m [19]: 初始化: engine initialized
+  [0;31mFAIL[0m [3]: 初始化: hook initialized
+  [0;31mFAIL[0m [4]: 初始化: strategy initialized
+  [0;32mPASS[0m [20]: 初始化: monitor initialized
+  [0;32mPASS[0m [21]: 初始化: analysis initialized
+  [0;31mFAIL[0m [5]: 初始化: optimization initialized
+  [0;32mPASS[0m [22]: 初始化: interface layer initialized
+  [0;32mPASS[0m [23]: procfs: config 已创建
+  [0;32mPASS[0m [24]: procfs: control 已创建
+  [0;32mPASS[0m [25]: procfs: policies 已创建
+  [0;32mPASS[0m [26]: procfs: stats 已创建
+  [0;32mPASS[0m [27]: procfs: hotspots 已创建
+  [0;32mPASS[0m [28]: procfs: bottlenecks 已创建
+  [0;32mPASS[0m [29]: procfs: rootcauses 已创建
+  [0;32mPASS[0m [30]: procfs: autotune 已创建
+  [0;32mPASS[0m [31]: procfs: prediction 已创建
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. 卸载后资源释放
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [32]: 卸载成功
+  [0;32mPASS[0m [33]: procfs 目录已清理
+  [0;32mPASS[0m [34]: debugfs 目录已清理
+  [0;32mPASS[0m [35]: kprobe 资源无泄漏
+  [0;32mPASS[0m [36]: 退出消息存在
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  测试结果汇总
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  总计: 41
+  [0;32m通过: 36[0m
+  [0;31m失败: 5[0m
+
+[0;31m存在失败用例![0m

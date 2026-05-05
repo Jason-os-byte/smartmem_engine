@@ -1,0 +1,50 @@
+╔══════════════════════════════════════════╗
+║  SmartMemEngine 单元测试 - debugfs 接口  ║
+╚══════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  0. debugfs 可用性
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [1]: debugfs 已挂载
+  [0;32mPASS[0m [2]: debugfs smartmem 目录存在
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. /sys/kernel/debug/smartmem/status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [3]: status 文件存在
+  [0;32mPASS[0m [4]: status 可读
+  [0;32mPASS[0m [5]: status 包含 Configuration 段
+  [0;32mPASS[0m [6]: status 包含 Hook 段
+  [0;31mFAIL[0m [1]: status 包含 Strategy 段
+  [0;32mPASS[0m [7]: status 包含 Bottleneck 段
+  [0;32mPASS[0m [8]: status 包含 Root Cause 段
+  [0;32mPASS[0m [9]: status 包含 Auto-Tune 段
+  [0;32mPASS[0m [10]: status 包含 Prediction 段
+  [0;31mFAIL[0m [2]: status 包含 Monitor 段
+  [0;32mPASS[0m [11]: status 连续5次读取正常
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. /sys/kernel/debug/smartmem/hotspots
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [12]: hotspots 文件存在
+  [0;32mPASS[0m [13]: hotspots 可读
+  [0;32mPASS[0m [14]: hotspots 包含栈信息（raw/resolved）
+  [0;32mPASS[0m [15]: hotspots 重置后可读
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. /sys/kernel/debug/smartmem/tune_history
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [16]: tune_history 文件存在
+  [0;32mPASS[0m [17]: tune_history 可读
+  [0;32mPASS[0m [18]: tune_history 调优后可读
+  [0;32mPASS[0m [19]: tune_history 包含 action
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  测试结果汇总
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  总计: 21
+  [0;32m通过: 19[0m
+  [0;31m失败: 2[0m
+  [0;33m跳过: 0[0m
+
+[0;31m存在失败用例![0m

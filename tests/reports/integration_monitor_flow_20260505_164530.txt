@@ -1,0 +1,70 @@
+╔══════════════════════════════════════════╗
+║  SmartMemEngine 集成测试 - 监控→分析→优化  ║
+╚══════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. Hook → Stats 数据流
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+stress: info: [16145] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16145] successful run completed in 5s
+  [0;32mPASS[0m [1]: Hook 采集数据流经 Stats: 1637 -> 76262
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  2. Tracepoint → Stats 数据流
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+stress: info: [16210] dispatching hogs: 0 cpu, 0 io, 1 vm, 0 hdd
+stress: info: [16210] successful run completed in 3s
+  [0;32mPASS[0m [2]: Tracepoint 采集数据流经 Stats: 165029 -> 250184
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  3. Hotspot 识别 → procfs 数据流
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+stress: info: [16247] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [16247] successful run completed in 8s
+  [0;32mPASS[0m [3]: Hotspot 识别产生了热点数据
+  [0;32mPASS[0m [4]: 热点包含评分
+  [0;32mPASS[0m [5]: 热点包含调用栈
+  [0;31mFAIL[0m [1]: 热点包含延迟
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  4. Bottleneck → RootCause 联动
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [6]: rootcauses 读取正常
+/root/project/smartmem_engine/tests/integration/test_monitor_flow.sh: 第 132 行：[: 0
+0：需要整数表达式
+  [0;32mPASS[0m [7]: 检测到 0
+0 个瓶颈，0
+0 个根因
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5. 预测模型 采样→预测 数据流
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  [0;32mPASS[0m [8]: 预测返回 type=none（采样不足时）
+等待采样积累（6秒）...
+  [0;32mPASS[0m [9]: 预测返回 type=none
+  [0;32mPASS[0m [10]: 包含采样计数
+  [0;32mPASS[0m [11]: 采样数 >= 1 (1)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  6. 端到端全链路验证
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+运行内存压力测试（15秒）...
+stress: info: [16395] dispatching hogs: 0 cpu, 0 io, 2 vm, 0 hdd
+stress: info: [16395] successful run completed in 15s
+  [0;32mPASS[0m [12]: 端到端: Stats 有数据
+  [0;32mPASS[0m [13]: 端到端: Hotspots 有数据
+  [0;32mPASS[0m [14]: 端到端: Prediction 有数据
+
+  --- 最终状态快照 ---
+  alloc_count: 218872
+  trace_events:   687730
+  type:            none
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  测试结果汇总
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  总计: 15
+  [0;32m通过: 14[0m
+  [0;31m失败: 1[0m
+
+[0;31m存在失败用例![0m
