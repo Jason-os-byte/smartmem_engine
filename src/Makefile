@@ -38,7 +38,7 @@ smartmem-y += strategy/builtin_strategies/numa_balance.o
 
 # 监控系统模块
 smartmem-y += monitor/monitor.o
-smartmem-y += monitor/ebpf_monitor.o
+smartmem-y += monitor/ebpf_status.o
 smartmem-y += monitor/trace_monitor.o
 
 # 分析引擎模块

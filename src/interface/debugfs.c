@@ -13,7 +13,7 @@
 #include "auto_tune.h"
 #include "predictive.h"
 #include "trace_monitor.h"
-#include "ebpf_monitor.h"
+#include "ebpf_status.h"
 
 static struct dentry *smartmem_debug_dir = NULL;
 
@@ -30,7 +30,7 @@ static int status_show(struct seq_file *m, void *v)
     seq_printf(m, "[Global]\n");
     seq_printf(m, "  version:          1.0.0\n");
     seq_printf(m, "  ebpf_active:      %s\n",
-               ebpf_monitor_is_active() ? "yes" : "no");
+               ebpf_status_is_active() ? "yes" : "no");
     seq_printf(m, "  trace_running:    events=%llu allocs=%llu frees=%llu\n",
                trace_monitor_get_event_count(),
                trace_monitor_get_alloc_count(),

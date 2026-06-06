@@ -122,16 +122,18 @@ test_memview() {
     output=$($memview bar 2>&1)
     [ $? -eq 0 ] && pass "memview bar" || fail "memview bar"
     echo "$output" | grep -q "Memory Layout" && pass "bar 包含 Memory Layout" || fail "bar 包含 Memory Layout"
-    # 检查颜色码（F=Free, A=Anon 等）
-    echo "$output" | grep -q "F=Free" && pass "bar 包含图例" || fail "bar 包含图例"
+    # 检查图例（剥离 ANSI 转义码后匹配，因为彩色输出中 F 和 = 之间有 \033[0m）
+    echo "$output" | sed 's/\x1b\[[0-9;]*m//g' | grep -q "F=Free" && pass "bar 包含图例" || fail "bar 包含图例"
 
-    # top（限时2秒）
+    # top（限时2秒，timeout 超时退出码 124 是预期行为）
     timeout 3 $memview top > /dev/null 2>&1
-    [ $? -le 1 ] && pass "memview top 运行正常（Ctrl+C退出）" || fail "memview top 运行正常"
+    rc=$?
+    [ $rc -eq 124 ] || [ $rc -le 1 ] && pass "memview top 运行正常（Ctrl+C/超时退出）" || fail "memview top 运行正常 (rc=$rc)"
 
-    # watch 限时3秒
+    # watch 限时3秒（超时退出码 124 是预期行为）
     timeout 4 $memview watch 1 > /dev/null 2>&1
-    [ $? -le 1 ] && pass "memview watch 1 运行正常" || fail "memview watch 1 运行正常"
+    rc=$?
+    [ $rc -eq 124 ] || [ $rc -le 1 ] && pass "memview watch 1 运行正常" || fail "memview watch 1 运行正常 (rc=$rc)"
 
     # 非法命令
     $memview invalid 2>&1 | grep -q "Error\|Usage" && pass "memview 非法命令报错" || fail "memview 非法命令报错"

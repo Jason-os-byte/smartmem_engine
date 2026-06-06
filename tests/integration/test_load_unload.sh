@@ -63,7 +63,7 @@ test_unload_with_features() {
     ! lsmod | grep -q smartmem && pass "卸载干净" || fail "卸载干净"
 
     # dmesg 无 oops/panic
-    if dmesg | tail -30 | grep -qi "oops\|panic\|bug"; then
+    if dmesg | tail -30 | grep -qE "Oops|[Kk]ernel panic|kernel BUG|Call Trace:"; then
         fail "dmesg 无 oops/panic"
     else
         pass "dmesg 无 oops/panic"
@@ -95,16 +95,24 @@ test_init_sequence() {
     section "4. 初始化序列验证"
 
     rmmod smartmem 2>/dev/null; sleep 1
+    dmesg -C 2>/dev/null   # 清空 dmesg 确保只看到本次加载的消息
     insmod "$MODULE_PATH" 2>/dev/null && pass "模块加载" || fail "模块加载"
     sleep 1
 
-    # 检查 dmesg 中各子模块初始化消息
+    # 抓取本次加载的所有 smartmem 消息（不要用 tail -50 截断）
     local dmesg_out
-    dmesg_out=$(dmesg | tail -50 | grep "smartmem")
+    dmesg_out=$(dmesg | grep "smartmem")
 
-    for msg in "config initialized" "stats initialized" "engine initialized" \
-               "hook initialized" "strategy initialized" "monitor initialized" \
-               "analysis initialized" "optimization initialized" "interface layer initialized"; do
+    # 使用实际 dmesg 消息中的模式匹配
+    for msg in "config initialized" \
+               "stats initialized" \
+               "engine initialized" \
+               "hook manager initialized" \
+               "strategy engine initialized" \
+               "monitor initialized" \
+               "analysis engine initialized" \
+               "optimization engine initialized" \
+               "interface layer initialized"; do
         echo "$dmesg_out" | grep -q "$msg" && pass "初始化: $msg" || fail "初始化: $msg"
     done
 

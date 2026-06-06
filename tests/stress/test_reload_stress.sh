@@ -17,7 +17,9 @@ fail() { FAIL=$((FAIL+1)); echo -e "  ${RED}FAIL${NC} [$FAIL]: $1"; }
 section() { echo ""; echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; echo "  $1"; echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; }
 
 check_oops() {
-    if dmesg | tail -30 | grep -qi "oops\|panic\|bug\|call trace"; then
+    # 使用 -E 扩展正则 + 单词边界，避免 "debugfs" 中的 "bug" 子串误判
+    # 内核异常关键字: Oops, kernel panic, kernel BUG, "Call Trace:", WARNING:
+    if dmesg | tail -30 | grep -qE "Oops|[Kk]ernel panic|kernel BUG|Call Trace:|WARNING:"; then
         fail "dmesg 检测到内核异常"
         return 1
     fi

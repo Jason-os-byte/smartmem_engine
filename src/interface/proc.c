@@ -3,13 +3,14 @@
 #include "proc.h"
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/ktime.h>
 #include <linux/uaccess.h>
 #include <linux/kallsyms.h>
 #include "config.h"
 #include "strategy.h"
 #include "stats.h"
 #include "trace_monitor.h"
-#include "ebpf_monitor.h"
+#include "ebpf_status.h"
 #include "analysis.h"
 #include "hotspot.h"
 #include "bottleneck.h"
@@ -51,8 +52,6 @@ static int config_show(struct seq_file *m, void *v)
         seq_printf(m, "numa_aware_enabled=%s\n", value);
     if (smartmem_config_get("adaptive_slub_enabled", value, sizeof(value)) == 0)
         seq_printf(m, "adaptive_slub_enabled=%s\n", value);
-    if (smartmem_config_get("ebpf_enabled", value, sizeof(value)) == 0)
-        seq_printf(m, "ebpf_enabled=%s\n", value);
     if (smartmem_config_get("trace_enabled", value, sizeof(value)) == 0)
         seq_printf(m, "trace_enabled=%s\n", value);
     if (smartmem_config_get("auto_tune_enabled", value, sizeof(value)) == 0)
@@ -254,7 +253,7 @@ static int stats_show(struct seq_file *m, void *v)
     seq_printf(m, "\n");
 
     seq_printf(m, "Monitoring:\n");
-    seq_printf(m, "  ebpf_active:    %s\n", ebpf_monitor_is_active() ? "yes" : "no");
+    seq_printf(m, "  ebpf_active:    %s\n", ebpf_status_is_active() ? "yes" : "no");
     seq_printf(m, "  trace_events:   %llu\n", trace_monitor_get_event_count());
     seq_printf(m, "  trace_allocs:   %llu\n", trace_monitor_get_alloc_count());
     seq_printf(m, "  trace_frees:    %llu\n", trace_monitor_get_free_count());
@@ -740,7 +739,7 @@ static int control_show(struct seq_file *m, void *v)
     seq_printf(m, "\n");
     seq_printf(m, "Features: hook_buddy_enabled, hook_slub_enabled, hook_vma_enabled,\n");
     seq_printf(m, "          hook_lru_enabled, hook_numa_enabled, numa_aware_enabled,\n");
-    seq_printf(m, "          adaptive_slub_enabled, ebpf_enabled, trace_enabled,\n");
+    seq_printf(m, "          adaptive_slub_enabled, trace_enabled,\n");
     seq_printf(m, "          auto_tune_enabled\n");
     seq_printf(m, "\n");
     seq_printf(m, "Examples:\n");
@@ -762,6 +761,75 @@ static const struct proc_ops control_proc_ops = {
     .proc_read = seq_read,
     .proc_write = control_write,
     .proc_lseek = seq_lseek,
+    .proc_release = single_release,
+};
+
+/* ============================================================
+ * /proc/smartmem/ebpf_status  — 用户态 BPF loader 心跳通道
+ *   读: 显示 loader 在线状态与累计事件统计
+ *   写: loader 上报 "<pid> <events> <drops> <allocs> <frees>"
+ * ============================================================ */
+static int ebpf_status_show(struct seq_file *m, void *v)
+{
+    struct ebpf_status_snapshot s;
+    u64 age_ns;
+
+    ebpf_status_get(&s);
+
+    seq_printf(m, "active:           %s\n", s.active ? "yes" : "no");
+    seq_printf(m, "loader_pid:       %d\n", s.loader_pid);
+    if (s.last_update_ns) {
+        age_ns = ktime_get_ns() - s.last_update_ns;
+        seq_printf(m, "last_update_age:  %llu ms\n",
+                   age_ns / NSEC_PER_MSEC);
+    } else {
+        seq_printf(m, "last_update_age:  never\n");
+    }
+    seq_printf(m, "events_total:     %llu\n", s.events_total);
+    seq_printf(m, "events_dropped:   %llu\n", s.events_dropped);
+    seq_printf(m, "alloc_count:      %llu\n", s.alloc_count);
+    seq_printf(m, "free_count:       %llu\n", s.free_count);
+    seq_printf(m, "\n");
+    seq_printf(m, "# loader heartbeat format (write):\n");
+    seq_printf(m, "#   <pid> <events> <drops> <allocs> <frees>\n");
+    seq_printf(m, "# example loader: tools/memtrace (libbpf)\n");
+    return 0;
+}
+
+static int ebpf_status_open(struct inode *inode, struct file *file)
+{
+    return single_open(file, ebpf_status_show, NULL);
+}
+
+static ssize_t ebpf_status_write(struct file *file, const char __user *ubuf,
+                                  size_t count, loff_t *ppos)
+{
+    char buf[128];
+    int pid;
+    u64 ev, drop, al, fr;
+    size_t n;
+
+    if (count == 0 || count >= sizeof(buf))
+        return -EINVAL;
+    n = count;
+    if (copy_from_user(buf, ubuf, n))
+        return -EFAULT;
+    buf[n] = '\0';
+
+    /* 解析: "<pid> <events> <drops> <allocs> <frees>" */
+    if (sscanf(buf, "%d %llu %llu %llu %llu",
+               &pid, &ev, &drop, &al, &fr) != 5)
+        return -EINVAL;
+
+    ebpf_status_update(pid, ev, drop, al, fr);
+    return count;
+}
+
+static const struct proc_ops ebpf_status_proc_ops = {
+    .proc_open    = ebpf_status_open,
+    .proc_read    = seq_read,
+    .proc_write   = ebpf_status_write,
+    .proc_lseek   = seq_lseek,
     .proc_release = single_release,
 };
 
@@ -871,6 +939,23 @@ int smartmem_proc_init(void)
         return -ENOMEM;
     }
 
+    /* /proc/smartmem/ebpf_status — 0666 让非 root loader 也能写心跳 */
+    if (!proc_create("ebpf_status", 0666, smartmem_dir,
+                     &ebpf_status_proc_ops)) {
+        pr_err("smartmem: failed to create /proc/smartmem/ebpf_status\n");
+        remove_proc_entry("prediction", smartmem_dir);
+        remove_proc_entry("autotune", smartmem_dir);
+        remove_proc_entry("rootcauses", smartmem_dir);
+        remove_proc_entry("bottlenecks", smartmem_dir);
+        remove_proc_entry("hotspots", smartmem_dir);
+        remove_proc_entry("stats", smartmem_dir);
+        remove_proc_entry("policies", smartmem_dir);
+        remove_proc_entry("control", smartmem_dir);
+        remove_proc_entry("config", smartmem_dir);
+        remove_proc_entry("smartmem", NULL);
+        return -ENOMEM;
+    }
+
     pr_info("smartmem: procfs initialized\n");
     return 0;
 }
@@ -881,6 +966,7 @@ void smartmem_proc_exit(void)
     pr_info("smartmem: procfs exiting...\n");
 
     if (smartmem_dir) {
+        remove_proc_entry("ebpf_status", smartmem_dir);
         remove_proc_entry("prediction", smartmem_dir);
         remove_proc_entry("autotune", smartmem_dir);
         remove_proc_entry("rootcauses", smartmem_dir);

@@ -105,7 +105,7 @@ test_hotspot_flow() {
         # 验证热点数据完整性
         grep -q "score=" /proc/smartmem/hotspots && pass "热点包含评分" || fail "热点包含评分"
         grep -q "call_stack:" /proc/smartmem/hotspots && pass "热点包含调用栈" || fail "热点包含调用栈"
-        grep -q "latency_avg=" /proc/smartmem/hotspots && pass "热点包含延迟" || fail "热点包含延迟"
+        grep -q "latency_avg:" /proc/smartmem/hotspots && pass "热点包含延迟" || fail "热点包含延迟"
     else
         fail "压力后未产生热点数据"
     fi

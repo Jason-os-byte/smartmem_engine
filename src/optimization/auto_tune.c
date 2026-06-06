@@ -139,8 +139,9 @@ static int do_compact(enum bottleneck_type trigger)
 /**
  * 调整 min_free_kbytes 水位线（真正执行）
  * 当空闲率低时，增加 min_free_kbytes 让内核更早开始回收
+ * @force: 非 0 表示手动触发，跳过空闲率门槛
  */
-static int do_adjust_watermark(enum bottleneck_type trigger)
+static int do_adjust_watermark_ex(enum bottleneck_type trigger, int force)
 {
     int free_pct;
     int cur_mfk, new_mfk;
@@ -151,7 +152,7 @@ static int do_adjust_watermark(enum bottleneck_type trigger)
         return -EAGAIN;
 
     free_pct = get_free_percent();
-    if (free_pct >= 10)
+    if (!force && free_pct >= 10)
         return 0;
 
     /* 读取当前 min_free_kbytes */
@@ -214,6 +215,11 @@ static int do_adjust_watermark(enum bottleneck_type trigger)
     record_history(TUNE_ACTION_ADJUST_WATERMARK, trigger, 0, desc);
 
     return 0;
+}
+
+static int do_adjust_watermark(enum bottleneck_type trigger)
+{
+    return do_adjust_watermark_ex(trigger, 0);
 }
 
 /**
@@ -435,7 +441,7 @@ int auto_tune_trigger(enum tune_action action)
     case TUNE_ACTION_COMPACT:
         return do_compact(BOTTLENECK_HIGH_FRAGMENT);
     case TUNE_ACTION_ADJUST_WATERMARK:
-        return do_adjust_watermark(BOTTLENECK_OOM_RISK);
+        return do_adjust_watermark_ex(BOTTLENECK_OOM_RISK, 1);
     case TUNE_ACTION_NUMA_MIGRATE:
         return do_numa_migrate(BOTTLENECK_NUMA_IMBALANCE);
     case TUNE_ACTION_ADJUST_SLAB:

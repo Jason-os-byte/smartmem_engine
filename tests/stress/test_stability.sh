@@ -25,7 +25,7 @@ ensure_module() {
 }
 
 check_oops() {
-    if dmesg | tail -50 | grep -qi "oops\|panic\|bug\|call trace"; then
+    if dmesg | tail -50 | grep -qE "Oops|[Kk]ernel panic|kernel BUG|Call Trace:|WARNING:"; then
         fail "dmesg 检测到内核异常"
         return 1
     fi

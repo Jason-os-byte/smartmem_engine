@@ -290,7 +290,17 @@ static int cmd_bar(void)
         int cache_w = (int)((cached * bar_width) / total);
         int slab_w = (int)((slab * bar_width) / total);
         int buf_w = (int)((buffers * bar_width) / total);
-        int i;
+        int used_w, i;
+
+        /* 把整数截断造成的剩余宽度补到 free 段（最大的非"其他"段），
+         * 避免出现 '?' 占位字符。*/
+        used_w = free_w + anon_w + cache_w + slab_w + buf_w;
+        if (used_w < bar_width)
+            free_w += (bar_width - used_w);
+        else if (used_w > bar_width)
+            free_w -= (used_w - bar_width);
+        if (free_w < 0)
+            free_w = 0;
 
         printf("  ");
         for (i = 0; i < bar_width; i++) {
@@ -305,7 +315,7 @@ static int cmd_bar(void)
             else if (i < free_w + anon_w + cache_w + slab_w + buf_w)
                 printf(COLOR_BLUE "B" COLOR_RESET);
             else
-                printf("?");
+                printf(COLOR_GREEN "F" COLOR_RESET);
         }
 
         printf("\n\n");

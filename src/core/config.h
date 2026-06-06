@@ -18,7 +18,6 @@ struct smartmem_config {
     bool adaptive_slub_enabled;
 
     /* 监控配置 */
-    bool ebpf_enabled;
     bool trace_enabled;
 
     /* 优化配置 */

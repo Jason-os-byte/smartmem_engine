@@ -199,8 +199,8 @@ test_hotspots() {
         pass "压力后产生热点数据"
         # 验证热点格式
         grep -q "score=" "$PROC_DIR/hotspots" && pass "热点包含 score" || fail "热点包含 score"
-        grep -q "alloc_count=" "$PROC_DIR/hotspots" && pass "热点包含 alloc_count" || fail "热点包含 alloc_count"
-        grep -q "latency_avg=" "$PROC_DIR/hotspots" && pass "热点包含 latency_avg" || fail "热点包含 latency_avg"
+        grep -q "alloc_count:" "$PROC_DIR/hotspots" && pass "热点包含 alloc_count" || fail "热点包含 alloc_count"
+        grep -q "latency_avg:" "$PROC_DIR/hotspots" && pass "热点包含 latency_avg" || fail "热点包含 latency_avg"
         grep -q "call_stack:" "$PROC_DIR/hotspots" && pass "热点包含 call_stack" || fail "热点包含 call_stack"
     else
         skip "压力后未产生热点（可能无 >100us 慢分配）"

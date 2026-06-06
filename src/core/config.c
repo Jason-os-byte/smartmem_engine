@@ -13,7 +13,6 @@ static struct smartmem_config g_config = {
     .hook_numa_enabled = false,
     .numa_aware_enabled = false,
     .adaptive_slub_enabled = false,
-    .ebpf_enabled = false,
     .trace_enabled = false,
     .auto_tune_enabled = false,
     .initialized = false,
@@ -69,8 +68,6 @@ static int config_set_bool(const char *key, bool value)
         g_config.numa_aware_enabled = value;
     } else if (strcmp(key, "adaptive_slub_enabled") == 0) {
         g_config.adaptive_slub_enabled = value;
-    } else if (strcmp(key, "ebpf_enabled") == 0) {
-        g_config.ebpf_enabled = value;
     } else if (strcmp(key, "trace_enabled") == 0) {
         g_config.trace_enabled = value;
     } else if (strcmp(key, "auto_tune_enabled") == 0) {
@@ -111,8 +108,6 @@ static int config_get_bool(const char *key, bool *value)
         *value = g_config.numa_aware_enabled;
     } else if (strcmp(key, "adaptive_slub_enabled") == 0) {
         *value = g_config.adaptive_slub_enabled;
-    } else if (strcmp(key, "ebpf_enabled") == 0) {
-        *value = g_config.ebpf_enabled;
     } else if (strcmp(key, "trace_enabled") == 0) {
         *value = g_config.trace_enabled;
     } else if (strcmp(key, "auto_tune_enabled") == 0) {

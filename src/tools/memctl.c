@@ -24,7 +24,7 @@ static void usage(void)
     printf("  memctl tune <action>             Trigger tune (compact/watermark/numa/slab)\n\n");
     printf("Features: hook_buddy_enabled, hook_slub_enabled, hook_vma_enabled,\n");
     printf("          hook_lru_enabled, hook_numa_enabled, numa_aware_enabled,\n");
-    printf("          adaptive_slub_enabled, ebpf_enabled, trace_enabled,\n");
+    printf("          adaptive_slub_enabled, trace_enabled,\n");
     printf("          auto_tune_enabled\n");
 }
 
